@@ -1,5 +1,13 @@
 import { Buff, Bytes } from '@cmdcode/buff-utils'
 
+export function fail (
+  error  : string,
+  throws = true
+) : boolean {
+  if (!throws) return false
+  throw new Error(error)
+}
+
 export function size (input : Bytes, size : number) : void {
   const bytes = Buff.bytes(input)
   if (bytes.length !== size) {

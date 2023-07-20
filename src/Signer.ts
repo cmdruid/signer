@@ -14,9 +14,10 @@ import {
   SignerOptions
 } from './config.js'
 
-import * as Note   from './note.js'
-import * as assert from './assert.js'
-import { Signed }  from './types.js'
+import * as Endorse from './endorse.js'
+import * as Note    from './note.js'
+import * as assert  from './assert.js'
+import { Endorsement, Signed }   from './types.js'
 
 export class Signer {
   static generate (
@@ -27,11 +28,12 @@ export class Signer {
   }
 
   static verify = {
-    note      : Note.verify_note,
-    signature : ecc.verify,
-    p_sig     : mv.psig,
-    musig     : mv.musig,
-    cosig     : mv.sig
+    note        : Note.verify_note,
+    endorsement : Endorse.verify_endorsement,
+    signature   : ecc.verify,
+    p_sig       : mv.psig,
+    musig       : mv.musig,
+    cosig       : mv.sig
   }
 
   readonly _pubkey : Buff
@@ -85,6 +87,13 @@ export class Signer {
   ) : Promise<Signer> {
     const config = { ...this._config, path, chain_code }
     return new Signer(this._seckey, config)
+  }
+
+  async endorse (
+    content : string,
+    policy ?: string[][]
+  ) : Promise<Endorsement> {
+    return Endorse.create_endorsement(this._sign, this._pubkey.hex, content, policy)
   }
 
   async notarize <T> (data : T) : Promise<Signed<T>> {
