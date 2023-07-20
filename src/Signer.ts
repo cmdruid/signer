@@ -1,5 +1,5 @@
-import { Buff, Bytes }       from '@cmdcode/buff-utils'
-import { ecc, digest, ecdh } from '@cmdcode/crypto-utils'
+import { Buff, Bytes } from '@cmdcode/buff-utils'
+import { ecc, ecdh }   from '@cmdcode/crypto-utils'
 
 import {
   MusigContext,
@@ -14,7 +14,9 @@ import {
   SignerOptions
 } from './config.js'
 
+import * as Note   from './note.js'
 import * as assert from './assert.js'
+import { Signed }  from './types.js'
 
 export class Signer {
   static generate (
@@ -25,10 +27,11 @@ export class Signer {
   }
 
   static verify = {
-    sig   : ecc.verify,
-    psig  : mv.psig,
-    musig : mv.musig,
-    cosig : mv.sig
+    note      : Note.verify_note,
+    signature : ecc.verify,
+    p_sig     : mv.psig,
+    musig     : mv.musig,
+    cosig     : mv.sig
   }
 
   readonly _pubkey : Buff
@@ -58,23 +61,23 @@ export class Signer {
     this._config = opt
   }
 
-  _gen_nonce (
-    message : Bytes,
-    aux    ?: Bytes
-  ) : [ sec_nonce : Bytes, pub_nonce : Bytes ] {
-    const min  = this._config.msg_min
-    const msg  = Buff.bytes(message)
-      let seed = this._seckey
-    assert.size(msg, 32)
-    assert.min_value(msg, min)
-    if (aux !== undefined) {
-      const a = digest('BIP0340/aux', aux)
-      seed = Buff.big(seed.big ^ a.big)
-    }
-    const n = [ seed, this._pubkey, Buff.bytes(message) ]
-    const sec_nonce = digest('BIP0340/nonce', ...n)
-    return [ sec_nonce, ecc.get_pubkey(sec_nonce) ]
-  }
+  // _gen_nonce (
+  //   message : Bytes,
+  //   aux    ?: Bytes
+  // ) : [ sec_nonce : Bytes, pub_nonce : Bytes ] {
+  //   const min  = this._config.msg_min
+  //   const msg  = Buff.bytes(message)
+  //     let seed = this._seckey
+  //   assert.size(msg, 32)
+  //   assert.min_value(msg, min)
+  //   if (aux !== undefined) {
+  //     const a = digest('BIP0340/aux', aux)
+  //     seed = Buff.big(seed.big ^ a.big)
+  //   }
+  //   const n = [ seed, this._pubkey, Buff.bytes(message) ]
+  //   const sec_nonce = digest('BIP0340/nonce', ...n)
+  //   return [ sec_nonce, ecc.get_pubkey(sec_nonce) ]
+  // }
 
   async derive (
     path : string,
@@ -82,6 +85,12 @@ export class Signer {
   ) : Promise<Signer> {
     const config = { ...this._config, path, chain_code }
     return new Signer(this._seckey, config)
+  }
+
+  async notarize <T> (data : T) : Promise<Signed<T>> {
+    return Note.notarize_data(
+      data, this._pubkey.hex, this._sign
+    )
   }
 
   async getPublicKey () : Promise<string> {
@@ -98,12 +107,16 @@ export class Signer {
     return code.hex
   }
 
-  async sign (message : Bytes) : Promise<string> {
+  _sign (message : Bytes) : string {
     const min = this._config.msg_min
     const msg = Buff.bytes(message)
     assert.size(msg, 32)
     assert.min_value(msg, min)
     return ecc.sign(message, this._seckey, this._config).hex
+  }
+
+  async sign (message : Bytes) : Promise<string> {
+    return this._sign(message)
   }
 
   async cosign (
