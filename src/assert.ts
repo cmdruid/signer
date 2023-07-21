@@ -23,12 +23,21 @@ export function exists <T> (
   }
 }
 
-export function min_value (
+export function min_byte_value (
   bytes : Bytes,
   min   : bigint
 ) : void {
   const val = Buff.bytes(bytes).big
   if (val < min) {
     throw new TypeError(`Bytes integer value is too low: ${val} < ${min}`)
+  }
+}
+
+export function max_num_value (
+  value : number,
+  limit : number
+) : void {
+  if (value > limit) {
+    throw new TypeError(`Number value is too high: ${value} > ${limit}`)
   }
 }

@@ -14,10 +14,15 @@ import {
   SignerOptions
 } from './config.js'
 
-import * as Endorse from './endorse.js'
 import * as Note    from './note.js'
 import * as assert  from './assert.js'
-import { Endorsement, Signed }   from './types.js'
+
+import {
+  DataSigner,
+  Endorsement,
+  Literal,
+  Signed
+} from './types.js'
 
 export class Signer {
   static generate (
@@ -29,7 +34,7 @@ export class Signer {
 
   static verify = {
     note        : Note.verify_note,
-    endorsement : Endorse.verify_endorsement,
+    endorsement : Note.verify_endorsement,
     signature   : ecc.verify,
     p_sig       : mv.psig,
     musig       : mv.musig,
@@ -59,7 +64,7 @@ export class Signer {
     }
 
     this._seckey = ecc.get_seckey(secret)
-    this._pubkey = ecc.get_pubkey(this._seckey)
+    this._pubkey = ecc.get_pubkey(this._seckey, opt.xonly)
     this._config = opt
   }
 
@@ -81,6 +86,16 @@ export class Signer {
   //   return [ sec_nonce, ecc.get_pubkey(sec_nonce) ]
   // }
 
+  _signer () : DataSigner {
+    return (content : Bytes) : string => {
+      const min = this._config.msg_min
+      const msg = Buff.bytes(content)
+      assert.size(msg, 32)
+      assert.min_byte_value(msg, min)
+      return ecc.sign(content, this._seckey, this._config).hex
+    }
+  }
+
   async derive (
     path : string,
     chain_code ?: string
@@ -91,19 +106,20 @@ export class Signer {
 
   async endorse (
     content : string,
-    policy ?: string[][]
+    policy ?: Literal[][]
   ) : Promise<Endorsement> {
-    return Endorse.create_endorsement(this._sign, this._pubkey.hex, content, policy)
+    const signer = this._signer()
+    return Note.endorse_data(signer, this._pubkey.hex, content, policy)
   }
 
   async notarize <T> (data : T) : Promise<Signed<T>> {
-    return Note.notarize_data(
-      data, this._pubkey.hex, this._sign
-    )
+    const signer = this._signer()
+    return Note.notarize_data(signer, this._pubkey.hex, data)
   }
 
-  async getPublicKey () : Promise<string> {
-    return this._pubkey.hex
+  async getPublicKey (xonly = true) : Promise<string> {
+    const pub = this._pubkey.hex
+    return (xonly) ? ecc.parse_x(pub).hex : pub
   }
 
   async getSharedCode (
@@ -116,16 +132,8 @@ export class Signer {
     return code.hex
   }
 
-  _sign (message : Bytes) : string {
-    const min = this._config.msg_min
-    const msg = Buff.bytes(message)
-    assert.size(msg, 32)
-    assert.min_value(msg, min)
-    return ecc.sign(message, this._seckey, this._config).hex
-  }
-
   async sign (message : Bytes) : Promise<string> {
-    return this._sign(message)
+    return this._signer()(message)
   }
 
   async cosign (
