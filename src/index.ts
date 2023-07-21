@@ -1,3 +1,7 @@
+import { ecc } from '@cmdcode/crypto-utils'
+
+import { verify as mv } from '@cmdcode/musig2'
+
 import * as assert  from './assert.js'
 import * as note    from './note.js'
 import * as util    from './utils.js'
@@ -6,8 +10,24 @@ export * from './config.js'
 export * from './Signer.js'
 export * from './types.js'
 
-export const tools = {
+export const Parse = {
+  kind  : note.parse_kind,
+  note  : note.parse_note,
+  proof : note.parse_proof,
+  ref   : note.parse_ref
+}
+
+export const Verify = {
+  note      : note.verify_note,
+  proof     : note.verify_proof,
+  signature : ecc.verify,
+  p_sig     : mv.psig,
+  musig     : mv.musig,
+  cosig     : mv.sig
+}
+
+export const Util = {
   assert,
   note,
-  util
+  ...util
 }

@@ -4,8 +4,7 @@ import { ecc, ecdh }   from '@cmdcode/crypto-utils'
 import {
   MusigContext,
   MusigOptions,
-  sig    as ms,
-  verify as mv
+  sig as ms
 } from '@cmdcode/musig2'
 
 import {
@@ -21,7 +20,7 @@ import {
   DataSigner,
   Endorsement,
   Literal,
-  Signed
+  Notarized
 } from './types.js'
 
 export class Signer {
@@ -30,15 +29,6 @@ export class Signer {
   ) : Signer {
     const sec = ecc.gen_seckey()
     return new Signer(sec, opt)
-  }
-
-  static verify = {
-    note        : Note.verify_note,
-    endorsement : Note.verify_endorsement,
-    signature   : ecc.verify,
-    p_sig       : mv.psig,
-    musig       : mv.musig,
-    cosig       : mv.sig
   }
 
   readonly _pubkey : Buff
@@ -112,9 +102,12 @@ export class Signer {
     return Note.endorse_data(signer, this._pubkey.hex, content, policy)
   }
 
-  async notarize <T> (data : T) : Promise<Signed<T>> {
+  async notarize <T> (
+    data    : T,
+    params ?: Literal[][]
+  ) : Promise<Notarized<T>> {
     const signer = this._signer()
-    return Note.notarize_data(signer, this._pubkey.hex, data)
+    return Note.notarize_data(signer, this._pubkey.hex, data, params)
   }
 
   async getPublicKey (xonly = true) : Promise<string> {

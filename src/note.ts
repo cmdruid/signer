@@ -6,9 +6,10 @@ import {
   DataSigner,
   Event,
   Endorsement,
+  Json,
   Literal,
-  ProofData,
-  Signed
+  Notarized,
+  ProofData
 } from './types.js'
 
 import * as assert from './assert.js'
@@ -16,25 +17,25 @@ import * as assert from './assert.js'
 const KIND_MAX     = 0xFFFFFFFF
 const KIND_DEFAULT = 20000
 
-export function notarize_data <T> (
+export function notarize_data <T = Json> (
   signer : DataSigner,
   pubkey : string,
-  data   : T,
+  body   : T,
   params : Literal[][] = []
-) : Signed<T> {
-  const content = JSON.stringify(data)
+) : Notarized<T> {
+  const content = JSON.stringify(body)
   const proof   = endorse_data(signer, pubkey, content, params)
-  return { ...data, ...parse_proof(proof) }
+  return { body, ...parse_proof(proof) }
 }
 
-export function verify_note <T> (
-  data : Signed<T>,
+export function verify_note <T = Json> (
+  data : Notarized<T>,
   throws = false
 ) : boolean {
-  const { id, sig, pubkey, ref, stamp, ...rest } = data
-  const content = JSON.stringify(rest)
+  const { id, sig, pubkey, ref, stamp, body } = data
+  const content = JSON.stringify(body)
   const proof : Endorsement = [ ref, pubkey, id, sig, stamp ]
-  return verify_endorsement(content, proof, throws)
+  return verify_proof(content, proof, throws)
 }
 
 export function endorse_data (
@@ -44,24 +45,24 @@ export function endorse_data (
   params  : Literal[][] = []
 ) : Endorsement {
   // Convert all param values into strings.
-  const strings  = params.map(e => e.map(f => String(f)))
+  const strings = params.map(e => e.map(f => String(f)))
   // Get kind value from params, if present.
-  const kind     = get_kind(strings, KIND_DEFAULT)
+  const kind    = get_kind(strings, KIND_DEFAULT)
   // Get the current timestamp.
-  const stamp    = now()
+  const stamp   = now()
   // Build the pre-image that we will be hashing.
-  const image    = [ 0, pubkey, stamp, kind, strings, content ]
+  const image   = [ 0, pubkey, stamp, kind, strings, content ]
   // Compute the hash id from the image.
-  const id       = Buff.json(image).digest.hex
+  const id      = Buff.json(image).digest.hex
   // Compute a signature for the given id.
-  const sig      = signer(id)
+  const sig     = signer(id)
   // Create a reference hash from the content string.
-  const ref_hash = get_ref_hash(content, strings)
+  const ref     = compute_ref(content, strings)
   // Return proof of endorsement in array.
-  return [ ref_hash, pubkey, id, sig, stamp ]
+  return [ ref, pubkey, id, sig, stamp ]
 }
 
-export function verify_endorsement (
+export function verify_proof (
   content : string,
   proof   : Endorsement,
   throws  = false
@@ -69,7 +70,7 @@ export function verify_endorsement (
   // Unpack the proof.
   const { ref, pubkey, id, sig, stamp } = parse_proof(proof)
   // Parse the hash and params.
-  const [ hash, params ] = parse_params(ref)
+  const [ hash, params ] = parse_ref(ref)
   // Get the kind value from params, if present.
   const kind = get_kind(params, KIND_DEFAULT)
   // Hash the content.
@@ -101,7 +102,7 @@ export function verify_policy (
   void proof
 }
 
-export function get_ref_hash (
+export function compute_ref (
   content : string,
   params  : string[][] = []
 ) : string {
@@ -116,7 +117,14 @@ export function get_ref_hash (
   return ref_hash
 }
 
-export function parse_params (
+export function parse_note <T> (
+  note : Notarized<T>
+) : T {
+  verify_note(note, true)
+  return note.body
+}
+
+export function parse_ref (
   ref_link : string
 ) : [ link : string, params : string[][] ] {
   // Initialize our variables.
@@ -170,25 +178,25 @@ export function parse_proof (
   return { id, pubkey, ref, sig, stamp }
 }
 
-export function convert_endorse_to_event (
+export function convert_proof_to_event (
   content : string,
   proof   : Endorsement
 ) : Event {
    // Unpack the proof.
   const { ref, pubkey, id, sig, stamp } = parse_proof(proof)
   // Parse the hash and params.
-  const [ _, params ] = parse_params(ref)
+  const [ _, params ] = parse_ref(ref)
   // Get the kind value from params, if present.
   const kind = get_kind(params, KIND_DEFAULT)
   return { id, pubkey, sig, kind, content, created_at: stamp, tags: params }
 }
 
 export function convert_note_to_event <T> (
-  data : Signed<T>
+  data : Notarized<T>
 ) : Event {
-  const { id, pubkey, ref, sig, stamp, ...rest } = data
-  const [ _, params ] = parse_params(ref)
+  const { id, pubkey, ref, sig, stamp, body } = data
+  const [ _, params ] = parse_ref(ref)
   const kind    = get_kind(params, KIND_DEFAULT)
-  const content = JSON.stringify(rest)
+  const content = JSON.stringify(body)
   return { id, pubkey, sig, kind, content, created_at: stamp, tags: params }
 }
