@@ -5,7 +5,6 @@ export type Literal = string | number | boolean | null
 export type Json    = Literal | { [key : string] : Json } | Json[]
 
 export type DataSigner   = (content : Bytes) => string
-export type Notarized<T> = ProofData & { body : T }
 
 export type Endorsement = [
   ref    : string,

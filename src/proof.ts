@@ -6,44 +6,24 @@ import {
   DataSigner,
   Event,
   Endorsement,
-  Json,
   Literal,
-  Notarized,
   ProofData
 } from './types.js'
 
 import * as assert from './assert.js'
+import * as util   from './utils.js'
 
 const KIND_MAX     = 0xFFFFFFFF
 const KIND_DEFAULT = 20000
 
-export function notarize_data <T = Json> (
+export function endorse_data <T> (
   signer : DataSigner,
   pubkey : string,
-  body   : T,
+  data   : T,
   params : Literal[][] = []
-) : Notarized<T> {
-  const content = JSON.stringify(body)
-  const proof   = endorse_data(signer, pubkey, content, params)
-  return { body, ...parse_proof(proof) }
-}
-
-export function verify_note <T = Json> (
-  data : Notarized<T>,
-  throws = false
-) : boolean {
-  const { id, sig, pubkey, ref, stamp, body } = data
-  const content = JSON.stringify(body)
-  const proof : Endorsement = [ ref, pubkey, id, sig, stamp ]
-  return verify_proof(content, proof, throws)
-}
-
-export function endorse_data (
-  signer  : DataSigner,
-  pubkey  : string,
-  content : string,
-  params  : Literal[][] = []
 ) : Endorsement {
+  // Stringify data.
+  const content = util.stringify(data)
   // Convert all param values into strings.
   const strings = params.map(e => e.map(f => String(f)))
   // Get kind value from params, if present.
@@ -62,11 +42,13 @@ export function endorse_data (
   return [ ref, pubkey, id, sig, stamp ]
 }
 
-export function verify_proof (
-  content : string,
-  proof   : Endorsement,
-  throws  = false
+export function verify_proof <T> (
+  data   : T,
+  proof  : Endorsement,
+  throws = false
 ) : boolean {
+  // Stringify data.
+  const content = util.stringify(data)
   // Unpack the proof.
   const { ref, pubkey, id, sig, stamp } = parse_proof(proof)
   // Parse the hash and params.
@@ -117,11 +99,25 @@ export function compute_ref (
   return ref_hash
 }
 
-export function parse_note <T> (
-  note : Notarized<T>
-) : T {
-  verify_note(note, true)
-  return note.body
+export function get_param (
+  label  : string,
+  params : string[][]
+) : string[] | undefined {
+  const ret = params.find(e => e[0] === label)
+  return (Array.isArray(ret) && ret.length > 1)
+    ? ret.slice(1)
+    : undefined
+}
+
+export function get_kind (
+  params   : string[][],
+  defaults : number
+) : number {
+  const param = get_param('kind', params)
+  if (Array.isArray(param)) {
+    return parse_kind(param[0])
+  }
+  return defaults
 }
 
 export function parse_ref (
@@ -140,17 +136,6 @@ export function parse_ref (
   return [ link, params ]
 }
 
-export function get_kind (
-  params   : string[][],
-  defaults : number
-) : number {
-  const param = get_param('kind', params)
-  if (Array.isArray(param)) {
-    return parse_kind(param[0])
-  }
-  return defaults
-}
-
 export function parse_kind (kind_str : string) : number {
   try {
     const kind = parseInt(kind_str)
@@ -161,16 +146,6 @@ export function parse_kind (kind_str : string) : number {
   }
 }
 
-export function get_param (
-  label  : string,
-  params : string[][]
-) : string[] | undefined {
-  const ret = params.find(e => e[0] === label)
-  return (Array.isArray(ret) && ret.length > 1)
-    ? ret.slice(1)
-    : undefined
-}
-
 export function parse_proof (
   proof : Endorsement
 ) : ProofData {
@@ -178,25 +153,17 @@ export function parse_proof (
   return { id, pubkey, ref, sig, stamp }
 }
 
-export function convert_proof_to_event (
-  content : string,
-  proof   : Endorsement
+export function convert_to_event <T> (
+  data  : T,
+  proof : Endorsement
 ) : Event {
+  // Stringify data.
+  const content = util.stringify(data)
    // Unpack the proof.
   const { ref, pubkey, id, sig, stamp } = parse_proof(proof)
   // Parse the hash and params.
   const [ _, params ] = parse_ref(ref)
   // Get the kind value from params, if present.
   const kind = get_kind(params, KIND_DEFAULT)
-  return { id, pubkey, sig, kind, content, created_at: stamp, tags: params }
-}
-
-export function convert_note_to_event <T> (
-  data : Notarized<T>
-) : Event {
-  const { id, pubkey, ref, sig, stamp, body } = data
-  const [ _, params ] = parse_ref(ref)
-  const kind    = get_kind(params, KIND_DEFAULT)
-  const content = JSON.stringify(body)
   return { id, pubkey, sig, kind, content, created_at: stamp, tags: params }
 }

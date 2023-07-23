@@ -13,14 +13,13 @@ import {
   SignerOptions
 } from './config.js'
 
-import * as Note    from './note.js'
-import * as assert  from './assert.js'
+import * as Note   from './proof.js'
+import * as assert from './assert.js'
 
 import {
   DataSigner,
   Endorsement,
-  Literal,
-  Notarized
+  Literal
 } from './types.js'
 
 export class Signer {
@@ -94,20 +93,12 @@ export class Signer {
     return new Signer(this._seckey, config)
   }
 
-  async endorse (
-    content : string,
+  async endorse <T> (
+    data    : T,
     policy ?: Literal[][]
   ) : Promise<Endorsement> {
     const signer = this._signer()
-    return Note.endorse_data(signer, this._pubkey.hex, content, policy)
-  }
-
-  async notarize <T> (
-    data    : T,
-    params ?: Literal[][]
-  ) : Promise<Notarized<T>> {
-    const signer = this._signer()
-    return Note.notarize_data(signer, this._pubkey.hex, data, params)
+    return Note.endorse_data(signer, this._pubkey.hex, data, policy)
   }
 
   async getPublicKey (xonly = true) : Promise<string> {
