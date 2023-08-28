@@ -95,8 +95,14 @@ export class Signer {
 
   musign (
     context   : MusigContext,
-    sec_nonce : Bytes
+    sec_nonce : Bytes,
+    aux_data ?: Bytes
   ) : Buff {
-    return sign.with_ctx(context, this._seckey, sec_nonce)
+    assert.size(sec_nonce, 32)
+    const { challenge, group_pubkey } = context
+    if (aux_data === undefined) aux_data = challenge
+    const int_nonce = this.gen_nonce(aux_data, group_pubkey)
+    const ext_nonce = Buff.join([ int_nonce, sec_nonce ])
+    return sign.with_ctx(context, this._seckey, ext_nonce)
   }
 }
