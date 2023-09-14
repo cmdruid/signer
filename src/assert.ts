@@ -1,4 +1,11 @@
-import { Buff, Bytes } from '@cmdcode/buff-utils'
+import { Buff, Bytes } from '@cmdcode/buff'
+
+export function ok (
+  value    : unknown,
+  message ?: string
+) : asserts value {
+  if (value === false) throw new Error(message ?? 'Assertion failed!')
+}
 
 export function size (input : Bytes, size : number) : void {
   const bytes = Buff.bytes(input)
@@ -15,7 +22,7 @@ export function exists <T> (
   }
 }
 
-export function min_byte_value (
+export function min_value (
   bytes : Bytes,
   min   : bigint
 ) : void {

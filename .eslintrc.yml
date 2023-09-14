@@ -50,6 +50,9 @@ rules:
         arrow:
           before    : true
           after     : true
+  "@typescript-eslint/explicit-function-return-type": off
+  "@typescript-eslint/consistent-type-imports": off
+  "@typescript-eslint/key-spacing": off
 
 ignorePatterns:
   - dist
