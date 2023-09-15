@@ -8,7 +8,7 @@
     "signer",
     "library"
   ],
-  "version": "1.1.7",
+  "version": "1.1.8",
   "type": "module",
   "main": "./dist/main.cjs",
   "unpkg": "./dist/browser.js",
@@ -47,7 +47,7 @@
   "dependencies": {
     "@cmdcode/buff": "^2.0.2",
     "@cmdcode/crypto-tools": "^2.4.10",
-    "@cmdcode/musig2": "^2.2.2",
+    "@cmdcode/musig2": "^2.2.3",
     "@scrow/tapscript": "^2.0.11"
   },
   "devDependencies": {
