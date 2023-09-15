@@ -21,10 +21,10 @@
     "@noble/curves" "^1.1.0"
     "@noble/hashes" "^1.3.0"
 
-"@cmdcode/musig2@^2.2.2":
-  version "2.2.2"
-  resolved "https://registry.yarnpkg.com/@cmdcode/musig2/-/musig2-2.2.2.tgz#7f9ea0e41076fbbdc3433ba62f03cddf28be5563"
-  integrity sha512-HQx9gQkv2kBnOZPqWZ49SHK3ISEvLjL7XwGfLqkUn/g6BjPmVtnZijOo3oMPT8nSIhFkArqdCtsvk2trKAgTmg==
+"@cmdcode/musig2@^2.2.3":
+  version "2.2.3"
+  resolved "https://registry.yarnpkg.com/@cmdcode/musig2/-/musig2-2.2.3.tgz#d50b7daacf6bc32aa19f52c42d6ef9ac6e0c7d86"
+  integrity sha512-H7CZYZs3FdqjJvg5vEO1LHT3jztSMasJFTJpD83fQgcGkCqSh/HGCyCVqm2bGd6FPTJDt7LsbFHjbBDpvbe9Iw==
 
 "@esbuild-kit/cjs-loader@^2.4.2":
   version "2.4.2"

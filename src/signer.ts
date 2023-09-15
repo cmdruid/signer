@@ -1,12 +1,11 @@
 import { Buff, Bytes }    from '@cmdcode/buff'
 import { parse_tx }       from '@scrow/tapscript/tx'
 import { hmac512 }        from '@cmdcode/crypto-tools/hash'
-import { derive_key }      from '@cmdcode/crypto-tools/hd'
+import { derive_key }     from '@cmdcode/crypto-tools/hd'
 import { get_shared_key } from '@cmdcode/crypto-tools/ecdh'
 
 import {
   MusigContext,
-  MusigOptions,
   get_ctx,
   get_key_ctx,
   get_nonce_ctx,
@@ -156,7 +155,7 @@ export class Signer {
     return Buff.join([ sn1, sn2 ])
   }
 
-  _musign (opt ?: MusigOptions) {
+  _musign (opt ?: SignerOptions) {
     const config = { ...this._config, ...opt }
     return (context : MusigContext, seeds ?: Bytes[]) : Buff => {
       const { group_pubkey, message } = context
