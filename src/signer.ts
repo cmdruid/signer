@@ -155,7 +155,7 @@ export class Signer {
   ) : Buff {
     const img = Buff.join([ group_pub, aux_data ])
     const sn1 = this._gen_nonce(options)(img)
-    const sn2 = this._gen_nonce(options)(sn1)
+    const sn2 = this._gen_nonce(options)(img.digest)
     return Buff.join([ sn1, sn2 ])
   }
 
