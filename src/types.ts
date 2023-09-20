@@ -1,11 +1,11 @@
 import { Bytes } from '@cmdcode/buff'
 
 export interface SignerOptions {
-  aux          ?: Bytes | null
-  adaptor      ?: string
-  nonce_tweaks ?: Bytes[]
-  tweak        ?: Bytes
-  throws       ?: boolean
+  aux         ?: Bytes | null
+  adaptor     ?: string
+  nonce_tweak ?: Bytes
+  key_tweak   ?: Bytes
+  throws      ?: boolean
 }
 
 export interface SignerConfig {
