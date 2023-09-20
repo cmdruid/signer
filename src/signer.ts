@@ -9,6 +9,7 @@ import {
   get_ctx,
   get_key_ctx,
   get_nonce_ctx,
+  keys,
   musign,
   verify_musig,
   verify_psig
@@ -132,7 +133,10 @@ export class Signer {
 
   _create_proof (opt ?: SignerOptions) {
     const config = { ...this._config, ...opt }
-    return <T> (content : T, params : string[][]) : string => {
+    return <T> (
+      content : T,
+      params  : string[][] = []
+    ) : string => {
       return create_proof(this._seckey, content, params, config)
     }
   }
@@ -144,12 +148,12 @@ export class Signer {
     }
   }
 
-  _gen_musig_nonces (
-    group_key : Bytes,
-    message   : Bytes,
+  _gen_session_nonce (
+    group_pub : Bytes,
+    aux_data  : Bytes,
     options  ?: SignerOptions
   ) : Buff {
-    const img = Buff.join([ group_key, message ])
+    const img = Buff.join([ group_pub, aux_data ])
     const sn1 = this._gen_nonce(options)(img)
     const sn2 = this._gen_nonce(options)(sn1)
     return Buff.join([ sn1, sn2 ])
@@ -157,11 +161,12 @@ export class Signer {
 
   _musign (opt ?: SignerOptions) {
     const config = { ...this._config, ...opt }
-    return (context : MusigContext, seeds ?: Bytes[]) : Buff => {
-      const { group_pubkey, message } = context
-      const img = [ group_pubkey, ...seeds ?? message ]
-      const non = this._gen_nonce(config)(Buff.join(img))
-      const sn  = Buff.join([ non, non.digest ])
+    return (
+      context  : MusigContext,
+      aux_data : Bytes
+    ) : Buff => {
+      const { group_pubkey } = context
+      const sn = this._gen_session_nonce(group_pubkey, aux_data, config)
       return musign(context, this._seckey, sn)
     }
   }
@@ -194,12 +199,21 @@ export class Signer {
     return get_shared_key(this._seckey, pubkey)
   }
 
-  get_nonce (
+  gen_nonce (
     message  : Bytes,
     options ?: SignerOptions
   ) : Buff {
     const sn = this._gen_nonce(options)(message)
     return get_pubkey(sn, true)
+  }
+
+  gen_session_nonce (
+    group_pub : Bytes,
+    aux_data  : Bytes,
+    options  ?: SignerOptions
+  ) : Buff {
+    const sn = this._gen_session_nonce(group_pub, aux_data, options)
+    return keys.get_pub_nonce(sn)
   }
 
   get_tapkey (config : TapConfig) {
@@ -212,10 +226,10 @@ export class Signer {
 
   musign (
     context  : MusigContext,
-    seeds   ?: Bytes[],
+    aux_data : Bytes,
     options ?: SignerOptions
   ) : Buff {
-    return this._musign(options)(context, seeds)
+    return this._musign(options)(context, aux_data)
   }
 
   sign_msg (
@@ -227,7 +241,7 @@ export class Signer {
 
   sign_note <T> (
     content  : T,
-    params   : string[][],
+    params  ?: string[][],
     options ?: SignerOptions
   ) {
     return this._create_proof(options)(content, params)

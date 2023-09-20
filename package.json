@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@cmdcode/buff": "^2.0.2",
-    "@cmdcode/crypto-tools": "^2.4.10",
+    "@cmdcode/crypto-tools": "^2.5.0",
     "@cmdcode/musig2": "^2.2.3",
     "@scrow/tapscript": "^2.0.11"
   },
