@@ -15,27 +15,16 @@ import {
 
 import * as assert from '../assert.js'
 
-export function generate () {
+export function gen_random () {
   return Buff.random(32)
 }
 
 export function gen_words (size ?: 12 | 24) : string[] {
-  const bits = (size === 12) ? 128 : 256
+  const bits = (size === 24) ? 256 : 128
   return generateMnemonic(wordlist, bits).split(' ')
 }
 
-export async function encrypt_seed (
-  seed   : Bytes,
-  secret : Bytes
-) {
-  const bytes   = Buff.bytes(seed)
-  const vector  = Buff.random(16)
-  const seckey  = pkdf256(secret, vector)
-  const payload = await encrypt(seckey, bytes, vector, 'AES-CBC')
-  return Buff.join([ vector, payload ])
-}
-
-export async function from_aes (
+export async function from_encrypted (
   payload : Bytes,
   secret  : Bytes
 ) {
@@ -48,12 +37,23 @@ export async function from_aes (
 }
 
 export function from_words (
-  phrase    : string | string[],
+  words     : string | string[],
   password ?: string
 ) {
-  if (Array.isArray(phrase)) {
-    phrase = phrase.join(' ')
+  if (Array.isArray(words)) {
+    words = words.join(' ')
   }
-  validateMnemonic(phrase, wordlist)
-  return mnemonicToSeedSync(phrase, password)
+  validateMnemonic(words, wordlist)
+  return Buff.raw(mnemonicToSeedSync(words, password))
+}
+
+export async function to_encrypted (
+  seed   : Bytes,
+  secret : Bytes
+) {
+  const bytes   = Buff.bytes(seed)
+  const vector  = Buff.random(16)
+  const seckey  = pkdf256(secret, vector)
+  const payload = await encrypt(seckey, bytes, vector, 'AES-CBC')
+  return Buff.join([ vector, payload ])
 }

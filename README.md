@@ -7,16 +7,31 @@ More documentation coming soon!
 ## How to Use
 
 ```ts
-import { Signer, Wallet } from '@cmdcode/signer'
+import { Seed, Signer } from '@cmdcode/signer'
 
-// Generate or import a wallet.
-const wallet = Wallet.from_xpub('xpubdeadbeef')
-// Generate a signer
-const signer = Signer.generate()
-// Export as recoverable credential.
-const cred   = signer.export_cred({ pubkey : wallet.pubkey })
-// Export as nip-04 encrypted note.
-const note   = signer.export_note({ pubkey : wallet.pubkey })
+// Generate a random seed phrase.
+const words  = Seed.gen_words()
+
+// Create a signer from seed phrase.
+const signer = Signer.from_words(words)
+
+// Export seed as a password-encrypted payload.
+const encrypted = signer.export_seed('password')
+
+// Export seed as nip-04 encrypted note.
+const note = signer.export_note('hex_pubkey')
+
+// Sign a message.
+const signature = signer.sign('message')
+
+// Generate a random account from the default wallet.
+const account = signer.wallet.new_account()
+
+// Generate a new P2W-PKH address from the account.
+const address = account.new_address()
+
+// Export the account as an xpub.
+const xpub = account.xpub
 ```
 
 ## Seed API
@@ -24,13 +39,27 @@ const note   = signer.export_note({ pubkey : wallet.pubkey })
 ```ts
 import { Seed } from '@cmdcode/signer'
 
-Seed
-  .gen_shards()
-  .gen_words()
-  .from_phrase()
-  .from_random()
-  .from_shards()
-  .from_words()
+interface Seed {
+  // Generate random seed (256 bits).
+  gen_random () => Buff
+  // Generate random seed words (12 / 24).
+  gen_words (size :? 12 | 24) => string
+  // Import a seed from a password-encrypted payload.
+  from_encrypted (
+    payload : Bytes,
+    secret  : Bytes
+  ) => Promise<Buff>
+  // Import a seed from a list of seed words.
+  from_words (
+    words     : string | string[],
+    password ?: string
+  ) => Buff
+  // Export a seed as a password-encrypted payload.
+  to_encrypted (
+    seed   : Bytes,
+    secret : Bytes
+  ) => Promise<Buff>
+}
 ```
 
 ## Signer API
@@ -38,36 +67,63 @@ Seed
 ```ts
 import { Signer } from '@cmdcode/signer'
 
-Signer
-  // Import from signed credential.
-  .from_cred('shared_secret')
-  // Import from nip-04 nostr note.
-  .from_note('shared_secret')
-  // Import from a raw seed.
-  .from_seed('seed')
-  // Import from seed words.
-  .from_words('abbadon abbadon abbadon')
+class Signer {
+  // Generate a signer from a random seed.
+  static generate () => Signer
+  // Import a signer from a password-encrypted payload.
+  static from_encrypted (
+    payload: string,
+    secret: string
+  ) => Promise<Signer>
+  // Import a signer from a seed phrase.
+  static from_words (
+    words: string | string[], 
+    pass?: string
+  ) => Signer
+  // Create a new Signer class.
+  constructor (seed: Bytes) => Signer
+  // Get the sha256 hash of the pubkey.
+  get id     () => string
+  // Get the pubkey of the signer.
+  get pubkey () => string
+  // Get a BIP32 wallet using the signer's internal seed.
+  get wallet () => Wallet
+  // Get a Diffe-Hellman shared secret from another pubkey.
+  ecdh (pubkey: Bytes) => Buff
+  // Export the signer's seed as a password-encrypted payload.
+  export_seed (secret: string) => Promise<string>
+  // Export the signer's seed as an encrypted nip-04 nostr note.
+  export_note (pubkey: string) => Promise<SignedEvent>
+  // Generate a pubnonce for a given message.
+  gen_nonce (
+    message  : Bytes, 
+    options ?: SignOptions
+  ) => Buff
+  // Generate an HMAC signature for a given message.
+  hmac (message: Bytes) => Buff
+  // Create a partial signature from a musig context object.
+  musign (
+    context  : MusigContext, 
+    auxdata  : Bytes, 
+    options ?: SignOptions
+  ) => Buff
+  // Create a compact digital proof for a given content string.
+  notarize (
+    content : string, 
+    params  : Params
+  ): Promise<string>
+  // Sign a message using BIP340-schnorr scheme.
+  sign (
+    message  : Bytes,
+    options ?: SignOptions
+  ) => string
+}
 
-const signer = Signer.from_seed('deadbeef')
-
-signer
-  // Show current path
-  .path
-  // Show current pubkey
-  .pubkey
-  // Derive a new address.
-  .derive_path('/0/0')
-  // Derive the next key-pair in the sequence.
-  .derive_next()
-  // Export as recoverable credential.
-  .export_cred({ pubkey : wallet.pubkey })
-  // Export as nip-04 encrypted note.
-  .export_note({ pubkey : wallet.pubkey })
-  // Export current pubkey as address (with format)
-  .get_address({ format : 'segwit' })
-
-const signer    = Signer.generate()
-const encrypted = signer.export({ pubkey : wallet.pubkey })
+interface SignOptions {
+  aux         ?: Bytes | null // Add aux data to nonce generation.
+  nonce_tweak ?: Bytes        // Add a tweak to the nonce value.
+  key_tweak   ?: Bytes        // Add a tweak to the key value.
+}
 ```
 
 ## Wallet API
@@ -75,134 +131,65 @@ const encrypted = signer.export({ pubkey : wallet.pubkey })
 ```ts
 import { Wallet } from '@cmdcode/signer'
 
-Wallet
+/**
+ * Wallet class for creating and managing accounts.
+ */
+class Wallet extends ExtendedKey {
   // Import a wallet from a raw seed.
-  .from_seed("m/86h/0h/0h/rand")
+  static from_seed  (seed: Bytes) => Wallet
   // Import a wallet from BIP39 seed words.
-  .from_words("m/86h/0h/0h/rand")
+  static from_words (words: string | string[]) => Wallet
   // Import a wallet from an xpub.
-  .from_xpub("xpub1pdeadbeef/rand")
+  static from_xpub  (xpub: string) => Wallet
+  // Create a wallet from an HDKey object.
+  constructor (hdkey: HDKey)
+  // Check if a given account exists within the wallet.
+  has_account (extkey: string | HDKey) => boolean
+  // Get an account key at the given account (index) number.
+  get_account (acct: number, index?: number) => KeyRing
+  // Generate a new account with a random index.
+  new_account () => KeyRing
+}
 
-const wallet = Wallet.from_xpub('xpub1pdeadbeef')
+/**
+ * Account-level class for extended keys.
+ */
+class KeyRing extends ExtendedKey {
+  // Import an account from an xpub.
+  static from_xpub(xpub: string) => KeyRing
+  // Create an account from an HDKey object.
+  constructor(hdkey: HDKey, start_idx?: number)
+  // Get the current extended key for the account.
+  get current () => ExtendedKey
+  // Get the current child index value for the account.
+  get idx () => number
+  // Get a P2W-PKH address for a given child-key at index.
+  get_address(index: number, network?: Network) => string
+  // Get the extended key for a given child-key at index.
+  get_pubkey(index: number) => ExtendedKey
+  // Check if a given address exists within the account.
+  has_address(address: string, limit?: number) => boolean
+  // Check if a given pubkey exists within the account.
+  has_pubkey(pubkey: string, limit?: number) => boolean
+  // Iterate the child index and return a new P2W-PKH address.
+  new_address(network?: Network) => string
+  // Iterate the child index and return a new extended key.
+  new_pubkey(network?: Network) => string
+}
 
-wallet
-  // Get current index.
-  .index
-  // Get current pubkey.
-  .pubkey
-  // Get current pubkey as address (in format).
-  .address('segwit')
-  // Derive a new extkey from path. 
-  .derive('/0/0')
-  // Export base extkey as xpub.
-  .export_xpub()
-  // Export base ext as descriptor.
-  .export_desc()
+/**
+ * Base class for an extended key.
+ */
+class ExtendedKey {
+  // Convert a BIP32 HDKey into an ExtendedKey.
+  constructor(hd: HDKey)
+  
+  get hd()     : HDKey  // Get internal HDKey object.
+  get index()  : number // Get index value of current key.
+  get pubkey() : string // Get pubkey value of current key.
+  get xpub()   : string // Get xpub value of current key.
+
+  // Get a P2W-PKH address for the curent key.
+  address (network?: Network) => string
+}
 ```
-
-## Key Derivation
-
-When importing a key, you can choose to import a master key (with no chaincode), or a derived key (with a chaincode).
-
-If you choose to import a master key, the signer will then derive a keypair using the default path of: `m/84'/0'/0'`
-
-If you import an extended key, then no additional derivation is applied.
-
-The signer will not attempt to save or keep track of a derviation path for your key, as derivation paths __cannot__ be verified without the master key anyway.
-
-When inserting a key into a contract, there are a few things that will be stored:
-
-- the pubkey
-- the `fingerprint` (this is sort of required for BIP32)
-- 
-
-## Importing a Master Key
-
-Master keys will be imported and derived using the following path prefix:
-
-Example: `m/84'/0'/0'`
-
-Using the next segment, new keys are generated using a random index value between 0x00000000 - 0x0FFFFFFF.
-
-Example: `m/84'/0'/0'/1846522110`
-
-The pubkey derived from this path should be added to the proposal, along with the pubkey:
-
-Example: { members : [ [ pubkey, `m/84'/0'/0'/1846522110` ] ] }
-
-If the user's current signing device can produce the listed pubkey using the derivation path, then the user knows that the key belongs to their wallet.
-
-The next segment is used to signify the address type, and the final segment is used to generate addresses sequentially.
-
-Example: `m/84'/0'/0'/1846522110/0/1`
-
-We can easily scan this final segment and check which addresses in the proposal belong to us.
-
-Since a new random sub-account should be generated for each proposal, the number of spent addresses for our sub-account should never exceed the number of unique addresses in the proposal.
-
-Therefore, we should be able to generate a sequential lookup table that is equal in size to the total number of unique addresses in the contract, and any address derived from our sub-account should be within that lookup table.
-
-Alternatively, if the address is not within the lookup table, we can check to see if an hmac signature is provided with the address.
-
-## Import
-
-- `from_seed`:
-
-Import a master key from raw bytes.
-
-- `from_phrase`:
-Import a master key from a UTF-8 string.
-
-- `from_bip39`:
-Import a master key from a BIP39 seed phrase.
-
-- `from_xprv`:
-Import a private key / chaincode from a BIP32 extended key.
-
-- `from_encrypted`:
-Import a private key / chaincode from an encrypted payload.
-
-- `from_nip04`:
-Import a private key / chaincode from an encrypted note.
-
-## Export
-
-- `to_xpub`:
-Export a private key / chaincode to a BIP32 extended key.
-(for save/load from a bitcoin wallet)
-
-- `to_encrypted`:
-Export a private key / chaincode to an encrypted payload.
-(for save/load from localstore)
-
-- `to_nostr`:
-Export a private key / chaincode to an encrypted note.
-(for save/load from the web)
-
-> note: use nip04?
-
-## Methods
-
-- `generate_key()`
-
-- `is_`
-
-- `derive_key` (path) => signer(self_sec, chaincode)
-  Derive a signer from a derivation path.
-
-## Strategy
-
-User can convert a passkey into a signer in two ways:
-  a. loaded from pass-encrypted payload.
-  b. recovered from imported signer.
-
-When given a proposal, user checks the following:
-  1. is the ref_id located in storage (local or nip04).
-  2. is the ref_id signed by the current signer (if present).
-
-If user is a member:
-  - check if `role/path` addresses match derived key
-Else:
-  - Generate a passkey.
-  - Add passkey to proposal (to empty `role`?)
-  - Derive (and add) addresses to matching `role/path`.

@@ -3,6 +3,7 @@ import { hmac512, sha256 } from '@cmdcode/crypto-tools/hash'
 import { get_shared_key }  from '@cmdcode/crypto-tools/ecdh'
 import { encrypt }         from '@cmdcode/crypto-tools/cipher'
 import { now }             from '../util.js'
+import { Wallet }          from './wallet.js'
 
 import {
   create_event,
@@ -10,8 +11,8 @@ import {
 } from './proof.js'
 
 import {
-  encrypt_seed,
-  from_aes,
+  to_encrypted,
+  from_encrypted,
   from_words
 } from './seed.js'
 
@@ -30,7 +31,10 @@ import {
   sign_msg
 } from '@cmdcode/crypto-tools/signer'
 
-import { Params, SignOptions } from '../types.js'
+import {
+  Params,
+  SignOptions
+} from '../types.js'
 
 import * as assert from '../assert.js'
 
@@ -43,20 +47,21 @@ export class Signer {
     return new Signer(seed)
   }
 
-  static async from_aes (
+  static async from_encrypted (
     payload : string,
     secret  : string
   ) {
     const bytes   = Buff.hex(payload)
     const encoded = Buff.str(secret)
-    const seed    = await from_aes(bytes, encoded)
+    const seed    = await from_encrypted(bytes, encoded)
     return new Signer(seed)
   }
 
   static from_words (
-    words : string | string[]
+    words : string | string[],
+    pass ?: string
   ) {
-    const seed = from_words(words)
+    const seed = from_words(words, pass)
     return new Signer(seed)
   }
 
@@ -76,6 +81,10 @@ export class Signer {
 
   get pubkey () : string {
     return this._pubkey.hex
+  }
+
+  get wallet () : Wallet {
+    return Wallet.from_seed(this._seed)
   }
 
   _gen_nonce (opt ?: SignOptions) {
@@ -109,10 +118,10 @@ export class Signer {
     return get_shared_key(this._seckey, pubkey)
   }
 
-  async export_aes (secret : string) {
+  async export_seed (secret : string) {
     // Export as a password-encrypted payload.
     const encoded = Buff.str(secret)
-    const payload = await encrypt_seed(this._seed, encoded)
+    const payload = await to_encrypted(this._seed, encoded)
     return payload.hex
   }
   

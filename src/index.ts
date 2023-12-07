@@ -1,5 +1,4 @@
-export { Signer }    from './lib/signer.js'
-export { useSigner } from './components/useSigner/index.jsx'
+export { Signer } from './lib/signer.js'
 
 export * as Seed from './lib/seed.js'
 

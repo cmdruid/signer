@@ -10,6 +10,8 @@ import {
 
 import * as assert from '../assert.js'
 
+const DEFAULT_PATH = "m/86'/0'/0'/0"
+
 export class ExtendedKey {
 
   readonly _hd : HDKey
@@ -139,7 +141,7 @@ export class Wallet extends ExtendedKey {
   static from_seed (seed : Bytes) {
     const uint8 = Buff.bytes(seed).raw
     const mstr  = HDKey.fromMasterSeed(uint8)
-    const path  = "m/86'/0'/0'/0"
+    const path  = DEFAULT_PATH
     const hdkey = mstr.derive(path)
     return new Wallet(hdkey)
   }
