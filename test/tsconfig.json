@@ -1,18 +1,18 @@
 {
   "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@/*" : [ "src/*" ],
+      "@cmdcode/signer" : [ "src/index.js" ],
+    },
     "module": "NodeNext",
-    "moduleResolution": "NodeNext",
     "target": "ESNext",
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "jsx": "react-jsx",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "declaration": true,
+    "moduleResolution": "NodeNext",
     "importHelpers": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": false,
     "skipLibCheck": true,
@@ -23,9 +23,10 @@
     "noImplicitAny": true,
     "noImplicitThis": true,
     "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "exclude": [ "dist", "node_modules", "test" ],
-  "include": [ "src/**/*.ts" ]
+  "exclude": [ "node_modules" ],
+  "include": [ "**/*.ts" ]
 }

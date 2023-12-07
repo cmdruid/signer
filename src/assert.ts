@@ -1,5 +1,7 @@
 import { Buff, Bytes } from '@cmdcode/buff'
 
+import * as util from './util.js'
+
 export function ok (
   value    : unknown,
   message ?: string
@@ -10,14 +12,14 @@ export function ok (
 export function size (input : Bytes, size : number) : void {
   const bytes = Buff.bytes(input)
   if (bytes.length !== size) {
-    throw new Error(`Invalid input size: ${bytes.hex} !== ${size}`)
+    throw new Error(`Invalid input size: ${bytes.length} !== ${size}`)
   }
 }
 
 export function exists <T> (
   input ?: T | null
   ) : asserts input is NonNullable<T> {
-  if (typeof input === 'undefined' || input === null) {
+  if (!util.exists(input)) {
     throw new Error('Input is null or undefined!')
   }
 }

@@ -1,8 +1,7 @@
-// rollup.config.ts
-import typescript  from '@rollup/plugin-typescript'
-import nodeResolve from '@rollup/plugin-node-resolve'
 import commonjs    from '@rollup/plugin-commonjs'
+import nodeResolve from '@rollup/plugin-node-resolve'
 import terser      from '@rollup/plugin-terser'
+import typescript  from '@rollup/plugin-typescript'
 
 const treeshake = {
 	moduleSideEffects       : false,
@@ -10,11 +9,25 @@ const treeshake = {
 	tryCatchDeoptimization  : false
 }
 
-const onwarn = warning => { throw new Error(warning) }
+const onwarn = (warning) => {
+  if (
+    warning.code === 'INVALID_ANNOTATION' && 
+    warning.message.includes('@__PURE__')
+  ) {
+    return
+  } else if (
+    warning.code === 'MISSING_NODE_BUILTINS' &&
+    warning.ids.toString() === [ 'crypto' ].toString()
+  ) {
+    return
+  }
+
+  throw new Error(warning)
+}
 
 export default {
   input: 'src/index.ts',
-  onwarn,
+//  onwarn,
   output: [
     {
       file: 'dist/main.cjs',
@@ -28,11 +41,14 @@ export default {
       minifyInternalExports: false
     },
     {
-      file: 'dist/browser.js',
+      file: 'dist/script.js',
       format: 'iife',
       name: 'signer',
       plugins: [terser()],
-      sourcemap: true
+      sourcemap: true,
+      globals: {
+        crypto : 'crypto',
+      }
     }
   ],
   plugins: [ typescript(), nodeResolve(), commonjs() ],
