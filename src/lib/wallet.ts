@@ -57,10 +57,10 @@ export class Wallet extends ExtendedKey {
   _idx : number
 
   constructor (
-    hdkey : HDKey | string,
+    extkey : HDKey | string,
     start_idx = 0
   ) {
-    super(hdkey)
+    super(extkey)
     this._idx = start_idx
   }
 
