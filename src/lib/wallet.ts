@@ -16,18 +16,18 @@ export class ExtendedKey {
 
   readonly _hd : HDKey
 
-  constructor (hd : HDKey) {
+  constructor (extkey : string | HDKey) {
     // Assert that we have a proper HDKey instance.
-    if (!(hd instanceof HDKey)) {
-      throw new Error('Invalid HD Key!')
+    if (typeof extkey === 'string') {
+      extkey = HDKey.fromExtendedKey(extkey)
     }
 
     // If HDKey contains private data, remove it.
-    if (hd.privateKey !== null) {
-      hd = hd.wipePrivateData()
+    if (extkey.privateKey !== null) {
+      extkey = extkey.wipePrivateData()
     }
 
-    this._hd = hd
+    this._hd = extkey
   }
 
   get hd () : HDKey {
@@ -54,15 +54,10 @@ export class ExtendedKey {
 
 export class Wallet extends ExtendedKey {
 
-  static from_xpub (xpub : string) {
-    const hdkey = HDKey.fromExtendedKey(xpub)
-    return new Wallet(hdkey)
-  }
-
   _idx : number
 
   constructor (
-    hdkey : HDKey,
+    hdkey : HDKey | string,
     start_idx = 0
   ) {
     super(hdkey)
@@ -151,27 +146,21 @@ export class MasterWallet extends ExtendedKey {
     return MasterWallet.from_seed(seed)
   }
 
-  static from_xpub (xpub : string) {
-    const hdkey = HDKey.fromExtendedKey(xpub)
-    return new MasterWallet(hdkey)
-  }
-
-  constructor (hdkey : HDKey) {
-    super(hdkey)
-  }
-
-  has_account (extkey : string | HDKey) {
-    if (typeof extkey === 'string') {
-      extkey = HDKey.fromExtendedKey(extkey)
-    }
-    const hda = new ExtendedKey(extkey)
-    const hdb = new ExtendedKey(this.hd.deriveChild(hda.index))
-    return hda.pubkey === hdb.pubkey
+  constructor (extkey : HDKey | string) {
+    super(extkey)
   }
 
   get_account (acct : number, index ?: number) {
     const hd_acct = this.hd.deriveChild(acct)
     return new Wallet(hd_acct, index)
+  }
+
+  has_account (extkey : string | HDKey | ExtendedKey) {
+    if (!(extkey instanceof ExtendedKey)) {
+      extkey = new ExtendedKey(extkey)
+    }
+    const hd = new ExtendedKey(this.hd.deriveChild(extkey.index))
+    return extkey.pubkey === hd.pubkey
   }
 
   new_account () {
