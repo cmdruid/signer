@@ -1,7 +1,7 @@
 import { Buff, Bytes } from '@cmdcode/buff'
 import { HDKey }       from '@scure/bip32'
 import { Network }     from '@scrow/tapscript'
-import { from_words }  from './seed.js'
+import { import_key }  from './util.js'
 
 import {
   P2WPKH,
@@ -10,7 +10,7 @@ import {
 
 import * as assert from '../assert.js'
 
-const DEFAULT_PATH = "m/86'/0'/0'/0"
+const DEFAULT_PATH = "m/84'/0'/0'/0"
 
 export class ExtendedKey {
 
@@ -52,11 +52,11 @@ export class ExtendedKey {
   }
 }
 
-export class KeyRing extends ExtendedKey {
+export class Wallet extends ExtendedKey {
 
   static from_xpub (xpub : string) {
     const hdkey = HDKey.fromExtendedKey(xpub)
-    return new KeyRing(hdkey)
+    return new Wallet(hdkey)
   }
 
   _idx : number
@@ -136,24 +136,24 @@ export class KeyRing extends ExtendedKey {
 
 }
 
-export class Wallet extends ExtendedKey {
+export class MasterWallet extends ExtendedKey {
   
   static from_seed (seed : Bytes) {
     const uint8 = Buff.bytes(seed).raw
     const mstr  = HDKey.fromMasterSeed(uint8)
     const path  = DEFAULT_PATH
     const hdkey = mstr.derive(path)
-    return new Wallet(hdkey)
+    return new MasterWallet(hdkey)
   }
 
   static from_words (words : string | string[]) {
-    const seed = from_words(words)
-    return Wallet.from_seed(seed)
+    const seed = import_key.from_words(words)
+    return MasterWallet.from_seed(seed)
   }
 
   static from_xpub (xpub : string) {
     const hdkey = HDKey.fromExtendedKey(xpub)
-    return new Wallet(hdkey)
+    return new MasterWallet(hdkey)
   }
 
   constructor (hdkey : HDKey) {
@@ -171,7 +171,7 @@ export class Wallet extends ExtendedKey {
 
   get_account (acct : number, index ?: number) {
     const hd_acct = this.hd.deriveChild(acct)
-    return new KeyRing(hd_acct, index)
+    return new Wallet(hd_acct, index)
   }
 
   new_account () {

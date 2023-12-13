@@ -1,23 +1,18 @@
-import { Buff }       from '@cmdcode/buff'
-import { Signer }     from '../src/index.js'
-import { get_pubkey } from '@cmdcode/crypto-tools/keys'
+// Test is_parent and is_child
+// Check out keypass hex and parsed
 
-const seed = Buff.str('alice').digest
-const sec  = Buff.str('carol').digest
+import { Signer } from '@cmdcode/signer'
 
-console.log('seed:', seed.hex)
+const signer = Signer.generate()
 
-const signer = new Signer(seed)
+console.log(signer)
 
-const payload = await signer.export_aes('bananas')
+const child = signer.derive()
 
-console.log('payload:', payload)
+console.log('is child:', signer.is_child(child.passkey))
+console.log('is_parent:', child.is_parent(signer.pubkey))
 
-const signer_2 = await Signer.from_aes(payload, 'bananas')
+const child2 = child.derive()
 
-console.log('decrypted:', signer_2._seed.hex)
-
-const pub  = get_pubkey(sec)
-const note = await signer.export_note(pub.hex)
-
-console.log('note:', JSON.stringify(note, null, 2))
+console.log('is child:', signer.is_child(child2.passkey))
+console.log('is_parent:', child2.is_parent(signer.pubkey))
