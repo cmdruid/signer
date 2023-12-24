@@ -1,10 +1,15 @@
-# Signer
+# KeyForge
 
 Software signing device and reference implementation of the Signer API.
 
 More documentation coming soon!
 
 ## How to Use
+
+KeyRing => Signer // A signing device that transfers funds into the contract.
+Account => Wallet // A watch-only wallet that generates new addresses for payouts.
+
+
 
 ```ts
 import { Seed, Signer } from '@cmdcode/signer'

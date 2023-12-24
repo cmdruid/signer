@@ -1,25 +1,19 @@
-import { Buff, Bytes } from '@cmdcode/buff'
-import { wordlist }    from '@scure/bip39/wordlists/english'
+import { Buff, Bytes }    from '@cmdcode/buff'
+import { cbc }            from '@noble/ciphers/aes'
+import { wordlist }       from '@scure/bip39/wordlists/english'
+import { get_shared_key } from '@cmdcode/crypto-tools/ecdh'
+import { get_seckey }     from '@cmdcode/crypto-tools/keys'
+import { HDKey }          from '@scure/bip32'
 
 import {
-  hmac512,
-  pkdf256
+  hmac256,
+  pkdf512
 } from '@cmdcode/crypto-tools/hash'
-
-import {
-  get_pubkey,
-  get_seckey
-} from '@cmdcode/crypto-tools/keys'
 
 import {
   combine_shares,
   create_shares
 } from '@cmdcode/crypto-tools/shamir'
-
-import {
-  encrypt,
-  decrypt
-} from '@cmdcode/crypto-tools/cipher'
 
 import {
   generateMnemonic,
@@ -29,37 +23,35 @@ import {
 
 import * as assert from '../assert.js'
 
-export async function decrypt_data (
-  payload : Bytes,
-  secret  : Bytes
-) {
-  const bytes  = Buff.bytes(payload)
-  assert.size(bytes, 64)
-  const vector = bytes.slice(0, 16)
-  const data   = bytes.slice(16)
-  const enckey = pkdf256(secret, vector)
-  return decrypt(enckey, data, vector, 'AES-CBC')
-}
-
-export async function encrypt_data (
+export function ecdh (
   seckey : Bytes,
-  secret : Bytes
+  pubkey : Bytes
 ) {
-  const bytes   = Buff.bytes(seckey)
-  const vector  = Buff.random(16)
-  const enckey  = pkdf256(secret, vector)
-  const payload = await encrypt(enckey, bytes, vector, 'AES-CBC')
-  return Buff.join([ vector, payload ])
+  const shared = get_shared_key(seckey, pubkey)
+  return shared.slice(1, 33)
 }
 
-export async function encrypt_content (
-  content : string,
-  secret  : Bytes
+export function decrypt (
+  payload : Bytes,
+  secret  : Bytes,
+  vector  : Bytes
 ) {
-  const encoded = Buff.str(content)
-  const vector  = Buff.random(16)
-  const payload = await encrypt(secret, encoded, vector, 'AES-CBC')
-  return payload.b64url + '?iv=' + vector.b64url
+  const dat = Buff.bytes(payload)
+  const sec = Buff.bytes(secret)
+  const vec = Buff.bytes(vector)
+  const dec = cbc(sec, vec).decrypt(dat)
+  return Buff.raw(dec)
+}
+
+export function encrypt (
+  payload : Bytes,
+  secret  : Bytes,
+  vector  : Bytes
+) {
+  const dat = Buff.bytes(payload)
+  const sec = Buff.bytes(secret)
+  const vec = Buff.bytes(vector)
+  return Buff.raw(cbc(sec, vec).encrypt(dat))
 }
 
 export function gen_seckey () {
@@ -81,21 +73,29 @@ export function gen_shares (
 }
 
 export function get_ref (
-  prev_pubkey : Bytes,
-  next_seckey : Bytes
+  kid    : Bytes,
+  pubkey : Bytes,
+  seckey : Bytes
 ) {
-  const mstkey = Buff.bytes(prev_pubkey)
-  const seckey = Buff.bytes(next_seckey)
-  const pubkey = get_pubkey(seckey, true)
-  return hmac512(seckey, mstkey, pubkey).slice(0, 32)
+  const ref = hmac256(seckey, kid, pubkey)
+  return ref.slice(0, 16)
 }
 
-export const import_key = {
-  from_shares : (
-  shares : Bytes[]
-  ) => {
-    const seed = combine_shares(shares)
-    return get_seckey(seed)
+export function get_vec (
+  payload : Bytes,
+  secret  : Bytes,
+  size = 16
+) {
+  return hmac256(secret, payload).slice(0, size)
+}
+
+export const import_seed = {
+  from_raw : (bytes : Bytes, password ?: string) => {
+    const salt = Buff.str('seed' + password)
+    return pkdf512(bytes, salt)
+  },
+  from_shares : (shares : Bytes[]) => {
+    return combine_shares(shares)
   },
   from_words : (
     words     : string | string[],
@@ -105,19 +105,20 @@ export const import_key = {
       words = words.join(' ')
     }
     validateMnemonic(words, wordlist)
-    const seed = mnemonicToSeedSync(words, password)
-    return get_seckey(seed)
+    return mnemonicToSeedSync(words, password)
   }
 }
 
-export function parse_passkey (key : Bytes) {
-  const bytes   = Buff.bytes(key)
-  assert.ok(bytes.length >= 96, 'invalid passkey length: ' + bytes.length)
-  const pubkey  = bytes.slice(0, 32).hex
-  const id      = bytes.slice(32, 64).hex
-  const ref     = bytes.slice(64, 96).hex
-  const payload = (bytes.length > 96)
-    ? bytes.slice(96).hex
-    : null
-  return { pubkey, id, ref, payload }
+export function parse_xpub (xpub : string) {
+  const hd = HDKey.fromExtendedKey(xpub)
+  assert.exists(hd.publicKey)
+  assert.exists(hd.chainCode)
+  return {
+    code    : Buff.raw(hd.chainCode).hex,
+    depth   : hd.depth,
+    fprint  : hd.parentFingerprint,
+    index   : hd.index,
+    pubkey  : Buff.raw(hd.publicKey).hex,
+    version : hd.versions.public
+  }
 }

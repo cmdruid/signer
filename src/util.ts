@@ -45,6 +45,11 @@ export function delay (ms ?: number) {
   return new Promise(res => setTimeout(res, ms ?? 1000))
 }
 
+export function sort_obj <T extends Record<string, any>> (obj : T) {
+  const sorted = Object.entries(obj).sort()
+  return Object.fromEntries(sorted) as T
+}
+
 export function stringify (content : any) : string {
   switch (typeof content) {
     case 'object':
