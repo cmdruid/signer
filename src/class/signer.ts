@@ -1,5 +1,7 @@
 import { Buff, Bytes }    from '@cmdcode/buff'
 import { get_shared_key } from '@cmdcode/crypto-tools/ecdh'
+import { Network }        from '@scrow/tapscript'
+import { MasterWallet }   from './wallet.js'
 import { create_proof }   from '../lib/proof.js'
 
 import {
@@ -33,31 +35,31 @@ const MSG_MIN_VALUE = 0xFFn ** 24n
 
 export class KeyPair {
 
-  readonly _kid    : Buff
+  readonly _id     : Buff
   readonly _pubkey : Buff
   readonly _seckey : Buff
 
   constructor (
     seckey : Bytes,
-    kid   ?: Bytes
+    id    ?: Bytes
   ) {
     // Use the secret as the key.
     this._seckey = get_seckey(seckey)
     // Compute the pubkey from the seckey.
     this._pubkey = get_pubkey(this._seckey, true)
     // Set the hash identifier for the keypair.
-    this._kid = (kid !== undefined)
-      ? Buff.bytes(kid)
+    this._id = (id !== undefined)
+      ? Buff.bytes(id)
       : this.hmac('256', this.pubkey)
   }
 
   get is_root () {
     const root_id = this.hmac('256', this.pubkey)
-    return root_id.hex === this.kid
+    return root_id.hex === this.id
   }
 
-  get kid () {
-    return this._kid.hex
+  get id () {
+    return this._id.hex
   }
 
   get pubkey () {
@@ -72,6 +74,10 @@ export class KeyPair {
     return (size === '512')
       ? hmac512(this._seckey, ...bytes)
       : hmac256(this._seckey, ...bytes)
+  }
+
+  xpub (network ?: Network) {
+    return MasterWallet.create(this._seckey, network).xpub
   }
 }
 
