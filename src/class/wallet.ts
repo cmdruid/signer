@@ -1,8 +1,7 @@
-import { Buff, Bytes }  from '@cmdcode/buff'
-import { HDKey }        from '@scure/bip32'
-import { Network }      from '@scrow/tapscript'
-import { import_seed }  from '../lib/util.js'
-import { WalletConfig } from '../types.js'
+import { Buff, Bytes }   from '@cmdcode/buff'
+import { HDKey }         from '@scure/bip32'
+import { Network }       from '@scrow/tapscript'
+import { AddressConfig } from '../types.js'
 
 import {
   P2WPKH,
@@ -11,18 +10,18 @@ import {
 
 import * as assert from '../assert.js'
 
-const DEFAULT_PATH   = "m/84'/0'/0'/0"
-const DEFAULT_CONFIG : WalletConfig = { network : 'main' }
+const DEFAULT_PATH = "m/84'/0'/0'"
+
+const DEFAULT_ADDR_CONFIG = {
+  format  : 'p2pkh',
+  network : 'main' as Network
+}
 
 export class ExtendedKey {
 
   readonly _hd  : HDKey
-  readonly _opt : WalletConfig
 
-  constructor (
-    extkey  : string | HDKey,
-    options : WalletConfig = {}
-  ) {
+  constructor (extkey : string | HDKey) {
     // Assert that we have a proper HDKey instance.
     if (typeof extkey === 'string') {
       extkey = HDKey.fromExtendedKey(extkey)
@@ -34,7 +33,6 @@ export class ExtendedKey {
     }
 
     this._hd  = extkey
-    this._opt = { ...DEFAULT_CONFIG, ...options }
   }
 
   get hd () : HDKey {
@@ -54,8 +52,12 @@ export class ExtendedKey {
     return this.hd.publicExtendedKey
   }
 
-  get address () : string {
-    return P2WPKH.create(this.pubkey, this._opt.network)
+  address (options ?: Partial<AddressConfig>) : string {
+    const conf = { ...DEFAULT_ADDR_CONFIG, ...options }
+    if (conf.format === 'p2wpkh') {
+      return P2WPKH.create(this.pubkey, conf.network)
+    }
+    throw new Error('unrecognized address format: ' + conf.format)
   }
 }
 
@@ -65,13 +67,12 @@ export class Wallet extends ExtendedKey {
   _idx   : number
 
   constructor (
-    extkey  : HDKey | string,
-    options : WalletConfig = {}
+    extkey    : HDKey | string,
+    start_idx : number = 0
   ) {
-    super(extkey, options)
+    super(extkey)
     this._cache = []
-    this._idx   = options.start_idx ?? 0
-    this._register(this.current.address)
+    this._idx   = start_idx
   }
 
   get current () {
@@ -82,44 +83,53 @@ export class Wallet extends ExtendedKey {
     return this._idx
   }
 
-  get new_address () : string {
-    this._idx  = this.idx + 1
-    const addr = this.current.address
-    this._register(addr)
-    return addr
-  }
-
-  _register (addr : string) {
+  _cache_addr (addr : string) {
     if (!this._cache.includes(addr)) {
       this._cache.push(addr)
     }
   }
 
-  get_address (index : number) {
-    const key  = this.get_extkey(index)
-    const addr = key.address
-    this._register(addr)
+  get_address (
+    index    : number,
+    options ?: Partial<AddressConfig>
+  ) {
+    const type = options?.type ?? 0
+    const key  = this.get_extkey(index, type)
+    const addr = key.address(options)
+    this._cache_addr(addr)
     return addr
   }
 
-  get_extkey (index : number) {
-    const hd = this.hd.deriveChild(index)
+  get_extkey (index : number, type = 0) {
+    const hd = this.hd.deriveChild(type).deriveChild(index)
     return new ExtendedKey(hd)
   }
 
-  has_address (address : string, limit = 100) {
+  has_address (
+    address : string,
+    type  = 0,
+    limit = 100
+  ) {
     if (this._cache.includes(address)) {
       return true
     } else {
-      const { network, type } = parse_addr(address)
-      assert.is_p2pkh(type)
-      assert.is_network(network, this._opt.network as string)
+      const { network, type: format } = parse_addr(address)
+      const opt = { format, network, type }
       for (let i = 0; i <= limit; i++) {
-        const curr = this.get_address(i)
-        if (curr === address) return true
+        const curr = this.get_address(i, opt)
+        if (curr === address) {
+          return true
+        }
       }
       return false
     }
+  }
+
+  new_address (options ?: Partial<AddressConfig>) : string {
+    this._idx  = this.idx + 1
+    const addr = this.get_address(this.idx, options)
+    this._cache_addr(addr)
+    return addr
   }
 }
 
@@ -133,19 +143,8 @@ export class MasterWallet extends ExtendedKey {
     return new MasterWallet(hdkey)
   }
 
-  static from_words (words : string | string[]) {
-    const seed = import_seed.from_words(words)
-    return MasterWallet.from_seed(seed)
-  }
-
-  _net : Network
-
-  constructor (
-    extkey  : HDKey | string,
-    network : Network = 'main'
-  ) {
+  constructor (extkey  : HDKey | string) {
     super(extkey)
-    this._net = network
   }
 
   get new_account () : Wallet {
@@ -153,18 +152,21 @@ export class MasterWallet extends ExtendedKey {
     return this.get_account(acct)
   }
 
-  get_account (acct : number, start_idx ?: number) {
-    const opt = { ...this._opt, start_idx }
+  get_account (
+    acct      : number,
+    start_idx : number = 0
+  ) {
     const hd = this.hd.deriveChild(acct & 0x7FFFFFFF)
-    return new Wallet(hd, opt)
+    return new Wallet(hd, start_idx)
   }
 
   has_account (extkey : string | HDKey | ExtendedKey) {
     if (!(extkey instanceof ExtendedKey)) {
       extkey = new ExtendedKey(extkey)
     }
-    const hd = new ExtendedKey(this.hd.deriveChild(extkey.index))
-    return extkey.pubkey === hd.pubkey
+    const hd   = this.hd.deriveChild(extkey.index)
+    const xkey = new ExtendedKey(hd)
+    return extkey.pubkey === xkey.pubkey
   }
 
 }

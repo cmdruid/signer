@@ -1,6 +1,5 @@
 import { Buff }       from '@cmdcode/buff'
 import { get_pubkey } from '@cmdcode/crypto-tools/keys'
-import { now }        from '../util.js'
 
 import {
   sign_msg,
@@ -23,7 +22,7 @@ import * as assert from '../assert.js'
  */
 const PROOF_DEFAULTS = {
   kind       : 20000,
-  created_at : now(),
+  created_at : Math.floor(Date.now() / 1000),
   params     : []
 }
 
@@ -182,4 +181,12 @@ export function decode_params (str ?: string) : string[][] {
 export function get_param (label : string, tags : string[][]) {
   const tag = tags.find(e => e[0] === label)
   return (tag !== undefined) ? tag[1] : undefined
+}
+
+export default {
+  create   : create_proof,
+  parse    : parse_proof,
+  publish  : proof_to_note,
+  validate : validate_proof,
+  verify   : verify_proof
 }

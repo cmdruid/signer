@@ -23,7 +23,6 @@ import {
 } from '@cmdcode/crypto-tools/signer'
 
 import {
-  KeyConfig,
   ProofConfig,
   SignOptions
 } from '../types.js'
@@ -38,8 +37,10 @@ export class KeyPair {
   readonly _pubkey : Buff
   readonly _seckey : Buff
 
-  constructor (config : KeyConfig) {
-    const { kid, seckey } = config
+  constructor (
+    seckey : Bytes,
+    kid   ?: Bytes
+  ) {
     // Use the secret as the key.
     this._seckey = get_seckey(seckey)
     // Compute the pubkey from the seckey.
@@ -48,6 +49,11 @@ export class KeyPair {
     this._kid = (kid !== undefined)
       ? Buff.bytes(kid)
       : this.hmac('256', this.pubkey)
+  }
+
+  get is_root () {
+    const root_id = this.hmac('256', this.pubkey)
+    return root_id.hex === this.kid
   }
 
   get kid () {
@@ -71,8 +77,11 @@ export class KeyPair {
 
 export class Signer extends KeyPair {
 
-  constructor (config : KeyConfig) {
-    super(config)
+  constructor (
+    seckey : Bytes,
+    kid   ?: Bytes
+  ) {
+    super(seckey, kid)
   }
 
   _gen_nonce (opt ?: SignOptions) {
