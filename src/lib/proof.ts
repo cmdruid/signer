@@ -54,8 +54,10 @@ export function create_proof (
   const hex = Buff.join([ kb, cb, pub, pid, sig ]).hex
   // Create the params string.
   const qry = encode_params(tag)
+  // Create the full token string.
+  const str = hex + qry
   // Return data object.
-  return { cat, hex, knd, pid, pub, qry, sig, tag }
+  return { cat, hex, knd, pid, pub, qry, sig, str, tag }
 }
 
 /**
@@ -63,9 +65,9 @@ export function create_proof (
  * into a rich data object.
  */
 export function parse_proof (
-  hex  : string,
-  qry ?: string
+  proof : string,
 ) : ProofData {
+  const [ hex, qry ] = proof.split('?')
   // Convert the hex string into a data stream.
   const stream = Buff.hex(hex).stream
   // Assert the stream size is correct.
@@ -76,9 +78,10 @@ export function parse_proof (
         pub = stream.read(32).hex,
         pid = stream.read(32).hex,
         sig = stream.read(64).hex,
+        str = proof,
         tag = decode_params(qry)
   // Return the proof object.
-  return { cat, hex, knd, pid, pub, qry, sig, tag }
+  return { cat, hex, knd, pid, pub, qry, sig, str, tag }
 }
 
 /**
@@ -173,7 +176,7 @@ export function encode_params (
  */
 export function decode_params (str ?: string) : string[][] {
   // Return the query string as an array of params.
-  return (typeof str === 'string')
+  return (typeof str === 'string' && str.length > 0)
     ? [ ...new URLSearchParams(str) ]
     : []
 }

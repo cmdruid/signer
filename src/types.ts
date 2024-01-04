@@ -73,6 +73,7 @@ export interface ProofData {
   pub  : string
   qry ?: string
   sig  : string
+  str  : string
   tag  : string[][]
 }
 
