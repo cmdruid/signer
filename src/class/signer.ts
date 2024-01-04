@@ -37,6 +37,11 @@ export class KeyPair {
   readonly _pubkey : Buff
   readonly _seckey : Buff
 
+  static generate () {
+    const seckey = Buff.random(32)
+    return new Signer(seckey)
+  }
+
   constructor (
     seckey : Bytes,
     kid   ?: Bytes
