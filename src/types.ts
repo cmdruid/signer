@@ -40,9 +40,9 @@ export type Params  = Literal[][] | Record<string, Literal>
 // }
 
 export interface AddressConfig {
-  format  : string
-  network : Network
-  type   ?: number
+  format  ?: string
+  index   ?: number
+  network ?: Network
 }
 
 export interface ProofConfig {

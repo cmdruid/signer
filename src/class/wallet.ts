@@ -4,17 +4,22 @@ import { Network }       from '@scrow/tapscript'
 import { AddressConfig } from '../types.js'
 
 import {
+  P2PKH,
+  P2TR,
   P2WPKH,
   parse_addr
 } from '@scrow/tapscript/address'
 
 import * as assert from '../assert.js'
 
-const DEFAULT_PATH = "m/84'/0'/0'"
+const PATHS = {
+  main : "m/86'/0'/0'",
+  test : "m/86'/1'/0'"
+}
 
-const DEFAULT_ADDR_CONFIG = {
-  format  : 'p2pkh',
-  network : 'main' as Network
+const VERSIONS = {
+  main : { private : 0x0488ade4, public : 0x0488b21e },
+  test : { private : 0x04358394, public : 0x043587cf }
 }
 
 export class ExtendedKey {
@@ -48,16 +53,29 @@ export class ExtendedKey {
     return Buff.raw(this.hd.publicKey).hex
   }
 
+  get version () {
+    const curr_ver = this.hd.versions.public
+    const main_ver = VERSIONS.main.public
+    return (curr_ver === main_ver) ? 'main' : 'testnet'
+  }
+
   get xpub () : string {
     return this.hd.publicExtendedKey
   }
 
-  address (options ?: Partial<AddressConfig>) : string {
-    const conf = { ...DEFAULT_ADDR_CONFIG, ...options }
-    if (conf.format === 'p2wpkh') {
-      return P2WPKH.create(this.pubkey, conf.network)
+  address (options ?: AddressConfig) : string {
+    const format  = options?.format  ?? 'p2wpkh'
+    const network = options?.network ?? this.version
+    switch (format) {
+      case 'p2wpkh':
+        return P2WPKH.create(this.pubkey, network)
+      case 'p2tr':
+        return P2TR.create(this.pubkey, network)
+      case 'p2pkh':
+        return P2PKH.create(this.pubkey, network)
+      default:
+        throw new Error('invalid address format: ' + format)
     }
-    throw new Error('unrecognized address format: ' + conf.format)
   }
 }
 
@@ -75,10 +93,6 @@ export class Wallet extends ExtendedKey {
     this._idx   = start_idx
   }
 
-  get current () {
-    return this.get_extkey(this.idx)
-  }
-
   get idx () {
     return this._idx
   }
@@ -89,61 +103,60 @@ export class Wallet extends ExtendedKey {
     }
   }
 
-  get_address (
-    index    : number,
-    options ?: Partial<AddressConfig>
-  ) {
-    const type = options?.type ?? 0
-    const key  = this.get_extkey(index, type)
+  derive_key (index : number) {
+    const hd = this.hd.deriveChild(index)
+    return new ExtendedKey(hd)
+  }
+
+  get_address (options ?: AddressConfig) {
+    const idx  = options?.index ?? this.idx
+    const key  = this.derive_key(idx)
     const addr = key.address(options)
     this._cache_addr(addr)
     return addr
   }
 
-  get_extkey (index : number, type = 0) {
-    const hd = this.hd.deriveChild(type).deriveChild(index)
-    return new ExtendedKey(hd)
-  }
-
   has_address (
     address : string,
-    type  = 0,
     limit = 100
   ) {
     if (this._cache.includes(address)) {
       return true
     } else {
       const { network, type: format } = parse_addr(address)
-      const opt = { format, network, type }
+      const opt = { format, network, index : 0 }
       for (let i = 0; i <= limit; i++) {
-        const curr = this.get_address(i, opt)
+        const curr = this.get_address(opt)
         if (curr === address) {
           return true
+        } else {
+          opt.index += 1
         }
       }
       return false
     }
   }
 
-  new_address (options ?: Partial<AddressConfig>) : string {
-    this._idx  = this.idx + 1
-    const addr = this.get_address(this.idx, options)
-    this._cache_addr(addr)
+  new_address (options ?: AddressConfig) : string {
+    const index = this.idx + 1
+    const addr  = this.get_address({ ...options, index })
+    this._idx   = index
     return addr
   }
 }
 
 export class MasterWallet extends ExtendedKey {
 
-  static from_seed (seed : Bytes) {
+  static from_seed (seed : Bytes, network : Network = 'main') {
+    const ver   = (network === 'main') ? VERSIONS.main : VERSIONS.test
+    const path  = (network === 'main') ? PATHS.main : PATHS.test
     const uint8 = Buff.bytes(seed).raw
-    const mstr  = HDKey.fromMasterSeed(uint8)
-    const path  = DEFAULT_PATH
+    const mstr  = HDKey.fromMasterSeed(uint8, ver)
     const hdkey = mstr.derive(path)
     return new MasterWallet(hdkey)
   }
 
-  constructor (extkey  : HDKey | string) {
+  constructor (extkey : HDKey | string) {
     super(extkey)
   }
 
@@ -153,10 +166,10 @@ export class MasterWallet extends ExtendedKey {
   }
 
   get_account (
-    acct      : number,
-    start_idx : number = 0
+    account_id : number,
+    start_idx  : number = 0
   ) {
-    const hd = this.hd.deriveChild(acct & 0x7FFFFFFF)
+    const hd = this.hd.deriveChild(account_id & 0x7FFFFFFF)
     return new Wallet(hd, start_idx)
   }
 
