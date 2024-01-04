@@ -134,7 +134,7 @@ export class Signer extends KeyPair {
 
   notarize (
     content : string,
-    config ?: ProofConfig
+    config ?: Partial<ProofConfig>
   ) {
     const seckey = this._seckey
     return create_proof({ ...config, content, seckey })
