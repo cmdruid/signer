@@ -1,17 +1,8 @@
-import { Buff, Bytes }    from '@cmdcode/buff'
-import { get_shared_key } from '@cmdcode/crypto-tools/ecdh'
-import { Network }        from '@scrow/tapscript'
-import { MasterWallet }   from './wallet.js'
-import { create_proof }   from '../lib/proof.js'
+import { Buff, Bytes }  from '@cmdcode/buff'
+import { KeyPair }      from './keypair.js'
 
 import {
-  hmac256,
-  hmac512
-} from '@cmdcode/crypto-tools/hash'
-
-import {
-  get_pubkey,
-  get_seckey
+  get_pubkey
 } from '@cmdcode/crypto-tools/keys'
 
 import {
@@ -24,62 +15,11 @@ import {
   sign_msg
 } from '@cmdcode/crypto-tools/signer'
 
-import {
-  ProofConfig,
-  SignOptions
-} from '../types.js'
+import { SignOptions } from '../types.js'
 
 import * as assert from '../assert.js'
 
 const MSG_MIN_VALUE = 0xFFn ** 24n
-
-export class KeyPair {
-
-  readonly _id     : Buff
-  readonly _pubkey : Buff
-  readonly _seckey : Buff
-
-  constructor (
-    seckey : Bytes,
-    id    ?: Bytes
-  ) {
-    // Use the secret as the key.
-    this._seckey = get_seckey(seckey)
-    // Compute the pubkey from the seckey.
-    this._pubkey = get_pubkey(this._seckey, true)
-    // Set the hash identifier for the keypair.
-    this._id = (id !== undefined)
-      ? Buff.bytes(id)
-      : this.hmac('256', this.pubkey)
-  }
-
-  get is_root () {
-    const root_id = this.hmac('256', this.pubkey)
-    return root_id.hex === this.id
-  }
-
-  get id () {
-    return this._id.hex
-  }
-
-  get pubkey () {
-    return this._pubkey.hex
-  }
-
-  ecdh (pubkey : Bytes) {
-    return get_shared_key(this._seckey, pubkey)
-  }
-
-  hmac (size : '256' | '512', ...bytes : Bytes[]) {
-    return (size === '512')
-      ? hmac512(this._seckey, ...bytes)
-      : hmac256(this._seckey, ...bytes)
-  }
-
-  xpub (network ?: Network) {
-    return MasterWallet.create(this._seckey, network).xpub
-  }
-}
 
 export class Signer extends KeyPair {
 
@@ -136,14 +76,6 @@ export class Signer extends KeyPair {
     options ?: SignOptions
   ) : Buff {
     return this._musign(options)(context, auxdata)
-  }
-
-  notarize (
-    content : string,
-    config ?: Partial<ProofConfig>
-  ) {
-    const seckey = this._seckey
-    return create_proof({ ...config, content, seckey })
   }
 
   sign (

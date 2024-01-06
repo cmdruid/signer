@@ -1,10 +1,5 @@
-import { Buff }       from '@cmdcode/buff'
-import { get_pubkey } from '@cmdcode/crypto-tools/keys'
-
-import {
-  sign_msg,
-  verify_sig
-} from '@cmdcode/crypto-tools/signer'
+import { Buff, Bytes } from '@cmdcode/buff'
+import { verify_sig }  from '@cmdcode/crypto-tools/signer'
 
 import {
   Literal,
@@ -31,22 +26,25 @@ const PROOF_DEFAULTS = {
  * signing device and content string (plus params).
  */
 export function create_proof (
-  config : ProofConfig
+  content  : string,
+  pubkey   : Bytes,
+  signer   : (msg : string) => string,
+  options ?: ProofConfig
 ) : ProofData {
   // Initialize config object.
-  const conf = { ...PROOF_DEFAULTS, ...config }
+  const opt = { ...PROOF_DEFAULTS, ...options }
   // Unpack config object.
-  const { created_at : cat, kind : knd } = conf
+  const { created_at : cat, kind : knd } = opt
   // Get pubkey of seckey.
-  const pub = get_pubkey(conf.seckey, true).hex
+  const pub = Buff.bytes(pubkey).hex
   // Unpack parsed config object.
-  const tag = parse_params(conf.params)
+  const tag = parse_params(opt.params)
   // Build the pre-image that we will be hashing.
-  const img = [ 0, pub, cat, knd, tag, conf.content ]
+  const img = [ 0, pub, cat, knd, tag, content ]
   // Compute the proof id from the image.
   const pid = Buff.json(img).digest.hex
   // Compute a signature for the given id.
-  const sig = sign_msg(pid, conf.seckey, conf.options).hex
+  const sig = signer(pid)
   // Normalize kind and stamp values.
   const cb  = Buff.num(cat, 4)
   const kb  = Buff.num(knd, 4)

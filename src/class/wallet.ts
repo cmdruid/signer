@@ -147,11 +147,20 @@ export class Wallet extends ExtendedKey {
 
 export class MasterWallet extends ExtendedKey {
 
-  static create (seed : Bytes, network : Network = 'main') {
-    const ver   = (network === 'main') ? VERSIONS.main : VERSIONS.test
-    const path  = (network === 'main') ? PATHS.main : PATHS.test
+  static create (
+    seed    : Bytes, 
+    network : Network = 'main',
+    path   ?: string,
+    prefix ?: { private : number, public : number }
+  ) {
+    if (path === undefined) {
+      path = (network === 'main') ? PATHS.main : PATHS.test
+    }
+    if (prefix === undefined) {
+      prefix = (network === 'main') ? VERSIONS.main : VERSIONS.test
+    }
     const uint8 = Buff.bytes(seed).raw
-    const mstr  = HDKey.fromMasterSeed(uint8, ver)
+    const mstr  = HDKey.fromMasterSeed(uint8, prefix)
     const hdkey = mstr.derive(path)
     return new MasterWallet(hdkey)
   }
