@@ -81,38 +81,78 @@ export class ExtendedKey {
 
 export class Wallet extends ExtendedKey {
 
-  _cache : string[]
-  _idx   : number
+  static create (
+    seed    : Bytes, 
+    network : Network = 'main',
+    path   ?: string,
+    prefix ?: { private : number, public : number }
+  ) {
+    if (path === undefined) {
+      path = (network === 'main') ? PATHS.main : PATHS.test
+    }
+    if (prefix === undefined) {
+      prefix = (network === 'main') ? VERSIONS.main : VERSIONS.test
+    }
+    const uint8 = Buff.bytes(seed).raw
+    const mstr  = HDKey.fromMasterSeed(uint8, prefix)
+    const hdkey = mstr.derive(path)
+    return new Wallet(hdkey)
+  }
+
+  static generate (network : Network = 'main') {
+    const seed = Buff.random(64)
+    return Wallet.create(seed, network)
+  }
+
+  _addr : string[]
+  _idx  : number
 
   constructor (
     extkey    : HDKey | string,
     start_idx : number = 0
   ) {
     super(extkey)
-    this._cache = []
-    this._idx   = start_idx
+    this._addr = []
+    this._idx  = start_idx
   }
 
   get idx () {
     return this._idx
   }
 
-  _cache_addr (addr : string) {
-    if (!this._cache.includes(addr)) {
-      this._cache.push(addr)
+  _cache (addr : string) {
+    if (!this._addr.includes(addr)) {
+      this._addr.push(addr)
     }
   }
 
-  derive_key (index : number) {
+  _derive (index : number) {
     const hd = this.hd.deriveChild(index)
     return new ExtendedKey(hd)
   }
 
+  get_account (
+    acct_id   : number,
+    start_idx : number = 0
+  ) {
+    const hd = this.hd.deriveChild(acct_id & 0x7FFFFFFF)
+    return new Wallet(hd, start_idx)
+  }
+
+  has_account (extkey : string | HDKey | ExtendedKey) {
+    if (!(extkey instanceof ExtendedKey)) {
+      extkey = new ExtendedKey(extkey)
+    }
+    const hd   = this.hd.deriveChild(extkey.index)
+    const xkey = new ExtendedKey(hd)
+    return extkey.pubkey === xkey.pubkey
+  }
+
   get_address (options ?: AddressConfig) {
     const idx  = options?.index ?? this.idx
-    const key  = this.derive_key(idx)
+    const key  = this._derive(idx)
     const addr = key.address(options)
-    this._cache_addr(addr)
+    this._cache(addr)
     return addr
   }
 
@@ -120,7 +160,7 @@ export class Wallet extends ExtendedKey {
     address : string,
     limit = 100
   ) {
-    if (this._cache.includes(address)) {
+    if (this._addr.includes(address)) {
       return true
     } else {
       const { network, type: format } = parse_addr(address)
@@ -143,57 +183,4 @@ export class Wallet extends ExtendedKey {
     this._idx   = index
     return addr
   }
-}
-
-export class MasterWallet extends ExtendedKey {
-
-  static create (
-    seed    : Bytes, 
-    network : Network = 'main',
-    path   ?: string,
-    prefix ?: { private : number, public : number }
-  ) {
-    if (path === undefined) {
-      path = (network === 'main') ? PATHS.main : PATHS.test
-    }
-    if (prefix === undefined) {
-      prefix = (network === 'main') ? VERSIONS.main : VERSIONS.test
-    }
-    const uint8 = Buff.bytes(seed).raw
-    const mstr  = HDKey.fromMasterSeed(uint8, prefix)
-    const hdkey = mstr.derive(path)
-    return new MasterWallet(hdkey)
-  }
-
-  static generate (network : Network = 'main') {
-    const seed = Buff.random(64)
-    return MasterWallet.create(seed, network)
-  }
-
-  constructor (extkey : HDKey | string) {
-    super(extkey)
-  }
-
-  get new_account () : Wallet {
-    const acct = Buff.random(4).num
-    return this.get_account(acct)
-  }
-
-  get_account (
-    account_id : number,
-    start_idx  : number = 0
-  ) {
-    const hd = this.hd.deriveChild(account_id & 0x7FFFFFFF)
-    return new Wallet(hd, start_idx)
-  }
-
-  has_account (extkey : string | HDKey | ExtendedKey) {
-    if (!(extkey instanceof ExtendedKey)) {
-      extkey = new ExtendedKey(extkey)
-    }
-    const hd   = this.hd.deriveChild(extkey.index)
-    const xkey = new ExtendedKey(hd)
-    return extkey.pubkey === xkey.pubkey
-  }
-
 }
