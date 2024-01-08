@@ -91,10 +91,6 @@ export class Signer extends KeyPair {
     super(seckey, kid)
   }
 
-  get new_child () {
-    return this.derive(Buff.now(4))
-  }
-
   _gen_nonce (opt ?: SignOptions) {
     const config = { aux: null, ...opt }
     return (msg : Bytes) : Buff => {
@@ -122,12 +118,17 @@ export class Signer extends KeyPair {
     }
   }
 
-  claimable (id : Bytes, pubkey : Bytes) {
-    const kp = this.derive(id)
+  has_id (id : Bytes, pubkey : Bytes) {
+    const kp = this.get_id(id)
     return kp.pubkey === Buff.bytes(pubkey).hex
   }
 
-  derive (id : Bytes) {
+  gen_id (fn : () => Bytes) {
+    const id = fn() ?? Buff.now(8)
+    return this.get_id(id)
+  }
+
+  get_id (id : Bytes) {
     const seckey = this.hmac('256', this.pubkey, id)
     return new Signer(seckey, id)
   }
