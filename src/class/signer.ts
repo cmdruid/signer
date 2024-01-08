@@ -49,9 +49,9 @@ export class KeyPair {
       : this.hmac('256', this.pubkey)
   }
 
-  get is_derived () {
+  get is_root () {
     const root_id = this.hmac('256', this.pubkey)
-    return root_id.hex !== this.id
+    return root_id.hex === this.id
   }
 
   get id () {
@@ -60,16 +60,6 @@ export class KeyPair {
 
   get pubkey () {
     return this._pubkey.hex
-  }
-
-  can_derive (id : Bytes, pubkey : Bytes) {
-    const kp = this.derive(id)
-    return kp.pubkey === Buff.bytes(pubkey).hex
-  }
-
-  derive (id : Bytes) {
-    const seckey = this.hmac('256', this.pubkey, id)
-    return new KeyPair(seckey, id)
   }
 
   ecdh (pubkey : Bytes) {
@@ -101,6 +91,10 @@ export class Signer extends KeyPair {
     super(seckey, kid)
   }
 
+  get new_child () {
+    return this.derive(Buff.now(4))
+  }
+
   _gen_nonce (opt ?: SignOptions) {
     const config = { aux: null, ...opt }
     return (msg : Bytes) : Buff => {
@@ -126,6 +120,16 @@ export class Signer extends KeyPair {
       assert.min_value(msg, MSG_MIN_VALUE)
       return sign_msg(msg, this._seckey, opt).hex
     }
+  }
+
+  claimable (id : Bytes, pubkey : Bytes) {
+    const kp = this.derive(id)
+    return kp.pubkey === Buff.bytes(pubkey).hex
+  }
+
+  derive (id : Bytes) {
+    const seckey = this.hmac('256', this.pubkey, id)
+    return new Signer(seckey, id)
   }
 
   gen_nonce (

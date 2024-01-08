@@ -132,10 +132,11 @@ export class Wallet extends ExtendedKey {
   }
 
   get_account (
-    acct_id   : number,
+    acct_id   : Bytes,
     start_idx : number = 0
   ) {
-    const hd = this.hd.deriveChild(acct_id & 0x7FFFFFFF)
+    const idx = Buff.bytes(acct_id).slice(0, 4).num & 0x7FFFFFFF
+    const hd  = this.hd.deriveChild(idx)
     return new Wallet(hd, start_idx)
   }
 
