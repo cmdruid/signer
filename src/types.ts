@@ -13,11 +13,6 @@ export type Params  = Literal[][] | Record<string, Literal>
 //   version : number
 // }
 
-// export interface KeyConfig {
-//   seckey : Bytes
-//   kid   ?: Bytes
-// }
-
 // export interface KeyCredential {
 //   kid     : Bytes
 //   pub     : Bytes
@@ -38,6 +33,12 @@ export type Params  = Literal[][] | Record<string, Literal>
 //   iv     ?: Bytes
 //   pubkey ?: Bytes
 // }
+
+export interface KeyConfig {
+  seed    : Bytes
+  id     ?: Bytes
+  id_gen ?: () => Bytes
+}
 
 export interface AddressConfig {
   format  ?: string

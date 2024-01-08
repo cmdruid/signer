@@ -23,10 +23,11 @@ import {
   sign_msg
 } from '@cmdcode/crypto-tools/signer'
 
-import { SignOptions } from '../types.js'
+import { KeyConfig, SignOptions } from '../types.js'
 
 import * as assert from '../assert.js'
 
+const DEFAULT_IDGEN = () => Buff.random(32)
 const MSG_MIN_VALUE = 0xFFn ** 24n
 
 export class KeyPair {
@@ -35,12 +36,10 @@ export class KeyPair {
   readonly _pubkey : Buff
   readonly _seckey : Buff
 
-  constructor (
-    seckey : Bytes,
-    id    ?: Bytes
-  ) {
+  constructor (config : KeyConfig) {
+    const { seed, id } = config
     // Use the secret as the key.
-    this._seckey = get_seckey(seckey)
+    this._seckey = get_seckey(seed)
     // Compute the pubkey from the seckey.
     this._pubkey = get_pubkey(this._seckey, true)
     // Set the hash identifier for the keypair.
@@ -79,16 +78,16 @@ export class KeyPair {
 
 export class Signer extends KeyPair {
 
-  static generate () {
-    const seckey = Buff.random(32)
-    return new Signer(seckey)
+  static generate (config : Partial<KeyConfig>) {
+    const seed = Buff.random(32)
+    return new Signer({ ...config, seed })
   }
 
-  constructor (
-    seckey : Bytes,
-    kid   ?: Bytes
-  ) {
-    super(seckey, kid)
+  readonly _gen_id : () => Bytes
+
+  constructor (config : KeyConfig) {
+    super(config)
+    this._gen_id = config.id_gen ?? DEFAULT_IDGEN
   }
 
   _gen_nonce (opt ?: SignOptions) {
@@ -123,14 +122,14 @@ export class Signer extends KeyPair {
     return kp.pubkey === Buff.bytes(pubkey).hex
   }
 
-  gen_id (fn : () => Bytes) {
-    const id = fn() ?? Buff.now(8)
+  gen_id () {
+    const id = this._gen_id()
     return this.get_id(id)
   }
 
   get_id (id : Bytes) {
-    const seckey = this.hmac('256', this.pubkey, id)
-    return new Signer(seckey, id)
+    const seed = this.hmac('256', this.pubkey, id)
+    return new Signer({ seed, id })
   }
 
   gen_nonce (
