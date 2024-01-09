@@ -40,6 +40,11 @@ export class ExtendedKey {
     this._hd  = extkey
   }
 
+  get chaincode () {
+    assert.exists(this.hd.chainCode)
+    return Buff.raw(this.hd.chainCode).hex
+  }
+
   get hd () : HDKey {
     return this._hd
   }

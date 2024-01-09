@@ -34,6 +34,12 @@ export type Params  = Literal[][] | Record<string, Literal>
 //   pubkey ?: Bytes
 // }
 
+export interface Credential {
+  id  : string
+  pub : string
+  sig : string
+}
+
 export interface KeyConfig {
   seed    : Bytes
   id     ?: Bytes
@@ -89,10 +95,10 @@ export interface SignedEvent {
 }
 
 export interface SignOptions {
-  aux         ?: Bytes | null
-  adaptor     ?: string
-  nonce_tweak ?: Bytes
-  key_tweak   ?: Bytes
-  recovery    ?: Bytes
-  throws      ?: boolean
+  aux          ?: Bytes | null
+  adaptor      ?: string
+  nonce_tweak  ?: Bytes
+  key_tweak    ?: Bytes
+  recovery_key ?: Bytes
+  throws       ?: boolean
 }

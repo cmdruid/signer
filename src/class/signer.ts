@@ -23,11 +23,19 @@ import {
   sign_msg
 } from '@cmdcode/crypto-tools/signer'
 
-import { KeyConfig, SignOptions } from '../types.js'
+import {
+  claim_credential,
+  gen_credential
+} from '../lib/cred.js'
+
+import {
+  Credential,
+  KeyConfig,
+  SignOptions
+} from '../types.js'
 
 import * as assert from '../assert.js'
 
-const DEFAULT_IDGEN = () => Buff.random(32)
 const MSG_MIN_VALUE = 0xFFn ** 24n
 
 export class KeyPair {
@@ -41,7 +49,7 @@ export class KeyPair {
     // Use the secret as the key.
     this._seckey = get_seckey(seed)
     // Compute the pubkey from the seckey.
-    this._pubkey = get_pubkey(this._seckey, true)
+    this._pubkey = get_pubkey(this._seckey)
     // Set the hash identifier for the keypair.
     this._id = (id !== undefined)
       ? Buff.bytes(id)
@@ -57,8 +65,12 @@ export class KeyPair {
     return this._id.hex
   }
 
+  get parity () {
+    return this._pubkey.slice(0, 1).hex
+  }
+
   get pubkey () {
-    return this._pubkey.hex
+    return this._pubkey.slice(1).hex
   }
 
   ecdh (pubkey : Bytes) {
@@ -70,24 +82,32 @@ export class KeyPair {
       ? hmac512(this._seckey, ...bytes)
       : hmac256(this._seckey, ...bytes)
   }
-
-  wallet (network ?: Network) {
-    return Wallet.create(this._seckey, network)
-  }
 }
 
 export class Signer extends KeyPair {
 
-  static generate (config : Partial<KeyConfig>) {
-    const seed = Buff.random(32)
-    return new Signer({ ...config, seed })
+  static claim (
+    cred : Credential,
+    idx  : number,
+    xprv : string
+  ) {
+    const seed = claim_credential(cred, idx, xprv)
+    return new Signer({ seed, id : cred.id })
   }
 
-  readonly _gen_id : () => Bytes
+  static generate () {
+    const seed = Buff.random(32)
+    return new Signer({ seed })
+  }
 
   constructor (config : KeyConfig) {
     super(config)
-    this._gen_id = config.id_gen ?? DEFAULT_IDGEN
+  }
+
+  _gen_cred () {
+    return (idx : number, xpub : string) => {
+      return gen_credential(idx, this._seckey, xpub)
+    }
   }
 
   _gen_nonce (opt ?: SignOptions) {
@@ -117,19 +137,8 @@ export class Signer extends KeyPair {
     }
   }
 
-  has_id (id : Bytes, pubkey : Bytes) {
-    const kp = this.get_id(id)
-    return kp.pubkey === Buff.bytes(pubkey).hex
-  }
-
-  gen_id () {
-    const id = this._gen_id()
-    return this.get_id(id)
-  }
-
-  get_id (id : Bytes) {
-    const seed = this.hmac('256', this.pubkey, id)
-    return new Signer({ seed, id })
+  gen_cred (idx : number, xpub : string) : Credential {
+    return this._gen_cred()(idx, xpub)
   }
 
   gen_nonce (
@@ -138,6 +147,16 @@ export class Signer extends KeyPair {
   ) : Buff {
     const sn = this._gen_nonce(options)(message)
     return get_pubkey(sn, true)
+  }
+
+  get_id (id : Bytes) {
+    const seed = this.hmac('256', this.pubkey, id)
+    return new Signer({ seed, id })
+  }
+
+  has_id (id : Bytes, pubkey : Bytes) {
+    const child = this.get_id(id)
+    return child.pubkey === Buff.bytes(pubkey).hex
   }
 
   musign (
@@ -153,5 +172,9 @@ export class Signer extends KeyPair {
     options ?: SignOptions
   ) : string {
     return this._sign(options)(message)
+  }
+
+  wallet (network ?: Network) {
+    return Wallet.create(this._seckey, network)
   }
 }

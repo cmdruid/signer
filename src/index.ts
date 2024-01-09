@@ -1,3 +1,4 @@
+import Cred  from './lib/cred.js'
 import Proof from './lib/proof.js'
 import Seed  from './lib/seed.js'
 
@@ -7,4 +8,4 @@ export * from './lib/proof.js'
 export * from './lib/seed.js'
 export * from './types.js'
 
-export { Proof, Seed }
+export { Cred, Proof, Seed }
