@@ -23,7 +23,7 @@ import { Credential } from '../types.js'
 import * as assert from '../assert.js'
 
 export function gen_credential (
-  idx    : number,
+  index  : number,
   seckey : Bytes,
   xpub   : string
 ) : Credential {
@@ -37,11 +37,11 @@ export function gen_credential (
   // Define the credential xonly pubkey.
   const pub = get_pubkey(seckey, true)
   // Define the credential identifier.
-  const id  = hmac256(seckey, pub, hd.chainCode, idx)
+  const id  = hmac256(seckey, pub, hd.chainCode, index)
   // Define the credential signature.
   const sig = sign_msg(id, seckey, opt)
   // Return the full credential.
-  return { id : id.hex, pub : pub.hex, sig : sig.hex }
+  return { id : id.hex, idx : index, pub : pub.hex, sig : sig.hex }
 }
 
 export function check_claim (
@@ -72,11 +72,10 @@ export function check_claim (
 
 export function claim_credential (
   cred : Credential,
-  idx  : number,
   xprv : string
 ) : string {
   // Unpack the credential object.
-  const { id, pub, sig } = cred
+  const { id, idx, pub, sig } = cred
   // Validate the credential signature.
   if (!verify_sig(sig, id, pub)) {
     throw new Error('credential signature is invalid')
@@ -85,7 +84,6 @@ export function claim_credential (
   const hd = HDKey.fromExtendedKey(xprv)
   // Assert the required fields exist.
   assert.exists(hd.privateKey)
-  assert.exists(hd.publicKey)
   assert.exists(hd.chainCode)
   // Recover the seckey from the signature.
   const seckey = recover_key(sig, id, pub, hd.privateKey)

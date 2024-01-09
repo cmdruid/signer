@@ -36,6 +36,7 @@ export type Params  = Literal[][] | Record<string, Literal>
 
 export interface Credential {
   id  : string
+  idx : number
   pub : string
   sig : string
 }

@@ -88,10 +88,9 @@ export class Signer extends KeyPair {
 
   static claim (
     cred : Credential,
-    idx  : number,
     xprv : string
   ) {
-    const seed = claim_credential(cred, idx, xprv)
+    const seed = claim_credential(cred, xprv)
     return new Signer({ seed, id : cred.id })
   }
 
@@ -137,7 +136,10 @@ export class Signer extends KeyPair {
     }
   }
 
-  gen_cred (idx : number, xpub : string) : Credential {
+  gen_cred (
+    idx  : number,
+    xpub : string
+  ) : Credential {
     return this._gen_cred()(idx, xpub)
   }
 
@@ -174,7 +176,7 @@ export class Signer extends KeyPair {
     return this._sign(options)(message)
   }
 
-  wallet (network ?: Network) {
-    return Wallet.create(this._seckey, network)
+  xpub (network ?: Network) {
+    return Wallet.create(this._seckey, network).xpub
   }
 }
