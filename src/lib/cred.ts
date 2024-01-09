@@ -30,7 +30,7 @@ export function gen_credential (
   assert.exists(hd.publicKey)
   assert.exists(hd.chainCode)
   const opt = { recovery_key : hd.publicKey }
-  const pub = get_pubkey(seckey)
+  const pub = get_pubkey(seckey, true)
   const id  = hmac256(seckey, pub, hd.chainCode, idx)
   const sig = sign_msg(id, seckey, opt)
   return { id : id.hex, pub : pub.hex, sig : sig.hex }
