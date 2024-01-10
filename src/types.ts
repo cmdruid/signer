@@ -8,7 +8,7 @@ export interface CredentialData {
   id   : string
   pub  : string
   sig  : string
-  wpub : string
+  xpub : string
 }
 
 export interface CredConfig {

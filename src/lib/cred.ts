@@ -22,81 +22,81 @@ import { CredentialData } from '../types.js'
 
 import * as assert from '../assert.js'
 
-export function get_cred_id (rpub : Bytes, xpub : string) {
-  const xpb = Buff.b58chk(xpub)
-  const img = Buff.join([ rpub, xpb ])
-  return sha256(img)
+export function get_cred_id (mspub : Bytes, mxpub : string) {
+  const xbytes = Buff.b58chk(mxpub)
+  const preimg = Buff.join([ mspub, xbytes ])
+  return sha256(preimg)
 }
 
-export function get_cred_msg (id : Bytes, wpub : string) {
-  const wpb = Buff.b58chk(wpub)
-  return Buff.join([ id, wpb ])
+export function get_cred_msg (id : Bytes, xpub : string) {
+  const xbytes = Buff.b58chk(xpub)
+  return Buff.join([ id, xbytes ])
 }
 
 export function has_cred_id (
-  cred : CredentialData,
-  rpub : Bytes,
-  xpub : string
+  cred   : CredentialData,
+  m_spub : Bytes,
+  m_xpub : string
 ) {
-  const hash = get_cred_id(rpub, xpub)
+  const hash = get_cred_id(m_spub, m_xpub)
   return cred.id === hash.hex
 }
 
 export function gen_credential (
   index  : number,
   seckey : Bytes,
-  xpub   : string
+  mxpub  : string
 ) : CredentialData {
   const idx = index & 0x7FFFFFFF
   // Create an HD object from extended key.
-  const whd = HDKey.fromExtendedKey(xpub).deriveChild(idx)
+  const whd = HDKey.fromExtendedKey(mxpub).deriveChild(idx)
   // Assert the required fields exist.
   assert.exists(whd.publicKey)
   // Define the credential xonly pubkey.
-  const rpub  = get_pubkey(seckey, true)
+  const mspub = get_pubkey(seckey, true)
   // Define the credential identifier.
-  const id    = get_cred_id(rpub, xpub)
+  const id    = get_cred_id(mspub, mxpub)
   // Compute the credential seed.
-  const cseed = hmac256(seckey, rpub, id)
+  const cseed = hmac256(seckey, mspub, id)
   // Compute the credential secret.
   const csec  = get_seckey(cseed)
   // Compute the credential pubkey.
   const pub   = get_pubkey(csec, true).hex
   // Define the wallet pubkey.
-  const wpk   = Buff.raw(whd.publicKey)
+  const wpub  = Buff.raw(whd.publicKey)
   // Compute the shared seed value.
-  const nseed = ecdhash(csec, wpk, true)
+  const nseed = ecdhash(csec, wpub, true)
   // Configure the signing options.
   const opt   = { nonce_seed : nseed }
   // Define the child xpub.
-  const wpub  = whd.publicExtendedKey
+  const xpub  = whd.publicExtendedKey
   // Compute the signature message.
-  const msg   = get_cred_msg(id, wpub)
+  const msg   = get_cred_msg(id, xpub)
   // Define the credential signature.
   const sig   = sign_msg(msg, csec, opt).hex
   // Return the full credential.
-  return { id : id.hex, pub, sig, wpub }
+  return { id : id.hex, pub, sig, xpub }
 }
 
 export function verify_credential (
-  cred : CredentialData,
-  rpub : Bytes,
-  xpub : string
+  cred  : CredentialData,
+  mspub : Bytes,
+  mxpub : string
 ) {
   // Unpack the credential object.
-  const { id, pub, sig, wpub } = cred
+  const { id, pub, sig, xpub } = cred
   // If root pubkey is defined, check credential id.
-  if (!has_cred_id(cred, rpub, xpub)) {
+  if (!has_cred_id(cred, mspub, mxpub)) {
     throw new Error('invalid credential id')
   }
   // Check credential xpub.
-  const xhd = HDKey.fromExtendedKey(xpub)
-  const whd = HDKey.fromExtendedKey(wpub)
-  if (whd.parentFingerprint !== xhd.fingerprint) {
+  const mhd = HDKey.fromExtendedKey(mxpub)
+  const chd = HDKey.fromExtendedKey(xpub)
+  if (chd.parentFingerprint !== mhd.fingerprint) {
     throw new Error('invalid credential xpub')
   }
   // Check credential signature.
-  const msg = get_cred_msg(id, wpub)
+  const msg = get_cred_msg(id, xpub)
   if (!verify_sig(sig, msg, pub)) {
     throw new Error('invalid credential signature')
   }
@@ -109,16 +109,16 @@ export function claim_credential (
   xprv : string
 ) : Buff {
   // Unpack the credential object.
-  const { id, pub, sig, wpub } = cred
+  const { id, pub, sig, xpub } = cred
   // Create an HD object from extended key.
-  const whd = HDKey.fromExtendedKey(wpub)
-  const xhd = HDKey.fromExtendedKey(xprv).deriveChild(whd.index)
+  const chd = HDKey.fromExtendedKey(xpub)
+  const mhd = HDKey.fromExtendedKey(xprv).deriveChild(chd.index)
   // Assert the required fields exist.
-  assert.exists(xhd.privateKey)
+  assert.exists(mhd.privateKey)
   // Compute the shared seed value.
-  const nseed  = ecdhash(xhd.privateKey, pub, true)
+  const nseed  = ecdhash(mhd.privateKey, pub, true)
   // Compute the signature message.
-  const msg    = get_cred_msg(id, wpub)
+  const msg    = get_cred_msg(id, xpub)
   // Recover the seckey from the signature.
   const seckey = recover_key(msg, pub, nseed, sig)
   // Compute the xonly pubkey from the seckey.

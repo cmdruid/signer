@@ -1,7 +1,6 @@
 import { Buff, Bytes }  from '@cmdcode/buff'
 import { ecdh }         from '@cmdcode/crypto-tools/ecdh'
 import { create_token } from '../index.js'
-import { Wallet }       from './wallet.js'
 
 import {
   hmac256,
@@ -25,12 +24,10 @@ import {
 
 import {
   claim_credential,
-  gen_credential,
-  verify_credential
+  gen_credential
 } from '../lib/cred.js'
 
 import {
-  CredConfig,
   CredentialData,
   KeyConfig,
   SignOptions,
@@ -111,35 +108,14 @@ export class Signer extends KeyPair {
     return new Signer({ ...config, seed })
   }
 
-  readonly _idxgen : () => number
-  readonly _wallet : Wallet
-
   constructor (config : KeyConfig) {
     // Initialize the keypair object.
     super(config)
-    // Set the index generator for credentials.
-    this._idxgen = (config.idxgen !== undefined)
-      ? config.idxgen
-      : () => Buff.random(4).num & 0x7FFFFFFF
-    // Set the internal xpub key.
-    this._wallet = (config.xpub !== undefined)
-      ? new Wallet(config.xpub)
-      : Wallet.create(config.seed).wiped
-  }
-
-  get wallet () {
-    return this._wallet
-  }
-
-  get xpub () {
-    return this.wallet.xpub
   }
 
   _gen_cred () {
-    return (index ?: number, xpub ?: string) => {
-      const idx = index ?? this._idxgen()
-      const xpb = xpub  ?? this.wallet.xpub
-      return gen_credential(idx, this._seckey, xpb)
+    return (index : number, xpub : string) => {
+      return gen_credential(index, this._seckey, xpub)
     }
   }
 
@@ -176,8 +152,7 @@ export class Signer extends KeyPair {
     }
   }
 
-  gen_cred (config ?: CredConfig) : CredentialData {
-    const { idx, xpub } = config ?? {}
+  gen_cred (idx : number, xpub : string) : CredentialData {
     return this._gen_cred()(idx, xpub)
   }
 
@@ -194,13 +169,6 @@ export class Signer extends KeyPair {
     options ?: TokenOptions
   ) {
     return this._gen_token(options)(content)
-  }
-
-  get_cred (cred : CredentialData) {
-    verify_credential(cred, this.pubkey, this.xpub)
-    const { id, wpub } = cred
-    const seed = this.hmac('256', this.pubkey, id)
-    return new Signer({ id, seed, xpub : wpub })
   }
 
   get_id (id : Bytes) {
@@ -229,8 +197,8 @@ export class Signer extends KeyPair {
   }
 
   toJSON () {
-    const { id, pubkey, xpub } = this
-    return { id, pubkey, xpub }
+    const { id, pubkey } = this
+    return { id, pubkey }
   }
 
   toString() {
