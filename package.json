@@ -1,9 +1,11 @@
 {
   "name": "@cmdcode/signer",
-  "description": "Seed, Signer and Wallet tools for Bitcoin transactions.",
+  "description": "Signer, Wallet and other tools for cryptography.",
   "author": "Christopher Scott",
   "license": "CC-BY-1.0",
   "keywords": [
+    "bitcoin",
+    "nostr",
     "crypto",
     "signer",
     "library"
@@ -18,7 +20,26 @@
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/main.cjs"
       }
+    },
+    "./cred": {
+      "import": "./dist/lib/cred.js",
+      "types": "./dist/lib/cred.d.ts",
+      "default": "./dist/lib/cred.js"
+    },
+    "./seed": {
+      "import": "./dist/lib/seed.js",
+      "types": "./dist/lib/seed.d.ts",
+      "default": "./dist/lib/seed.js"
+    },
+    "./token": {
+      "import": "./dist/lib/token.js",
+      "types": "./dist/lib/token.d.ts",
+      "default": "./dist/lib/token.js"
     }
   },
   "repository": {
@@ -37,14 +58,14 @@
   ],
   "scripts": {
     "build": "./build.sh",
-    "release": "pnpm test && pnpm build",
-    "scratch": "pnpm load test/scratch.ts",
+    "release": "yarn test && yarn build",
+    "scratch": "yarn load test/scratch.ts",
     "load": "tsx --tsconfig test/tsconfig.json",
-    "test": "pnpm tsc && pnpm load test/tape.ts"
+    "test": "yarn tsc && yarn load test/tape.ts"
   },
   "dependencies": {
     "@cmdcode/buff": "^2.2.4",
-    "@cmdcode/crypto-tools": "^2.6.10",
+    "@cmdcode/crypto-tools": "^2.7.4",
     "@cmdcode/musig2": "^2.4.1",
     "@noble/ciphers": "^0.4.1",
     "@scrow/tapscript": "^2.2.0",

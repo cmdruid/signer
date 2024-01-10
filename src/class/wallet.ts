@@ -26,14 +26,14 @@ export class ExtendedKey {
 
   readonly _hd  : HDKey
 
-  constructor (extkey : string | HDKey) {
+  constructor (extkey : string | HDKey, xpub_only = false) {
     // Assert that we have a proper HDKey instance.
     if (typeof extkey === 'string') {
       extkey = HDKey.fromExtendedKey(extkey)
     }
 
     // If HDKey contains private data, remove it.
-    if (extkey.privateKey !== null) {
+    if (xpub_only && extkey.privateKey !== null) {
       extkey = extkey.wipePrivateData()
     }
 
@@ -62,6 +62,12 @@ export class ExtendedKey {
     const curr_ver = this.hd.versions.public
     const main_ver = VERSIONS.main.public
     return (curr_ver === main_ver) ? 'main' : 'testnet'
+  }
+
+  get xprv () : string | null {
+    return (this._hd.privateKey !== null)
+      ? this._hd.privateExtendedKey
+      : null
   }
 
   get xpub () : string {

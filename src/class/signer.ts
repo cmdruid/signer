@@ -1,7 +1,7 @@
-import { Buff, Bytes }    from '@cmdcode/buff'
-import { get_shared_key } from '@cmdcode/crypto-tools/ecdh'
-import { Network }        from '@scrow/tapscript'
-import { Wallet }         from './wallet.js'
+import { Buff, Bytes } from '@cmdcode/buff'
+import { ecdh }        from '@cmdcode/crypto-tools/ecdh'
+import { Network }     from '@scrow/tapscript'
+import { Wallet }      from './wallet.js'
 
 import {
   hmac256,
@@ -29,12 +29,14 @@ import {
 } from '../lib/cred.js'
 
 import {
-  Credential,
+  CredentialData,
   KeyConfig,
-  SignOptions
+  SignOptions,
+  TokenOptions
 } from '../types.js'
 
 import * as assert from '../assert.js'
+import { create_token } from '../index.js'
 
 const MSG_MIN_VALUE = 0xFFn ** 24n
 
@@ -73,8 +75,8 @@ export class KeyPair {
     return this._pubkey.slice(1).hex
   }
 
-  ecdh (pubkey : Bytes) {
-    return get_shared_key(this._seckey, pubkey)
+  ecdh (pubkey : Bytes, xonly = false) {
+    return ecdh(this._seckey, pubkey, xonly)
   }
 
   hmac (size : '256' | '512', ...bytes : Bytes[]) {
@@ -87,7 +89,7 @@ export class KeyPair {
 export class Signer extends KeyPair {
 
   static claim (
-    cred : Credential,
+    cred : CredentialData,
     xprv : string
   ) {
     const seed = claim_credential(cred, xprv)
@@ -99,12 +101,20 @@ export class Signer extends KeyPair {
     return new Signer({ seed })
   }
 
+  readonly _idx_gen : () => number
+
   constructor (config : KeyConfig) {
+    // Initialize the keypair object.
     super(config)
+    // Set the index generator for credentials.
+    this._idx_gen = (config.idx_gen !== undefined)
+      ? config.idx_gen
+      : () => Buff.random(4).num & 0x7FFFFFFF
   }
 
   _gen_cred () {
-    return (idx : number, xpub : string) => {
+    return (xpub : string, index ?: number) => {
+      const idx = index ?? this._idx_gen()
       return gen_credential(idx, this._seckey, xpub)
     }
   }
@@ -113,6 +123,12 @@ export class Signer extends KeyPair {
     const config = { aux: null, ...opt }
     return (msg : Bytes) : Buff => {
       return gen_nonce(msg, this._seckey, config)
+    }
+  }
+
+  _gen_token (options ?: TokenOptions) {
+    return (content : string) => {
+      return create_token(content, this._seckey, options)
     }
   }
 
@@ -137,10 +153,10 @@ export class Signer extends KeyPair {
   }
 
   gen_cred (
-    idx  : number,
-    xpub : string
-  ) : Credential {
-    return this._gen_cred()(idx, xpub)
+    xpub   : string,
+    index ?: number
+  ) : CredentialData {
+    return this._gen_cred()(xpub, index)
   }
 
   gen_nonce (
@@ -149,6 +165,13 @@ export class Signer extends KeyPair {
   ) : Buff {
     const sn = this._gen_nonce(options)(message)
     return get_pubkey(sn, true)
+  }
+
+  gen_token (
+    content  : string,
+    options ?: TokenOptions
+  ) {
+    return this._gen_token(options)(content)
   }
 
   get_id (id : Bytes) {

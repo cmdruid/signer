@@ -1,54 +1,58 @@
 import { Buff, Bytes } from '@cmdcode/buff'
-import { verify_sig }  from '@cmdcode/crypto-tools/signer'
+import { get_pubkey }  from '@cmdcode/crypto-tools/keys'
+
+import {
+  sign_msg,
+  verify_sig
+} from '@cmdcode/crypto-tools/signer'
 
 import {
   Literal,
   Params,
-  ProofData,
-  ProofConfig,
+  TokenData,
+  TokenOptions,
   SignedEvent,
-  ProofPolicy
+  TokenPolicy
 } from '../types.js'
 
 import * as assert from '../assert.js'
 
 /**
- * Initial values for new proofs.
+ * Initial values for new tokens.
  */
-const PROOF_DEFAULTS = {
+const TOKEN_DEFAULTS = {
   kind       : 20000,
   created_at : Math.floor(Date.now() / 1000),
   params     : []
 }
 
 /**
- * Create a new proof string using a provided
+ * Create a new token token using a provided
  * signing device and content string (plus params).
  */
-export function create_proof (
+export function create_token (
   content  : string,
-  pubkey   : Bytes,
-  signer   : (msg : string) => string,
-  options ?: ProofConfig
-) : ProofData {
+  seckey   : Bytes,
+  options ?: TokenOptions
+) : TokenData {
   // Initialize config object.
-  const opt = { ...PROOF_DEFAULTS, ...options }
+  const opt = { ...TOKEN_DEFAULTS, ...options }
   // Unpack config object.
   const { created_at : cat, kind : knd } = opt
   // Get pubkey of seckey.
-  const pub = Buff.bytes(pubkey).hex
+  const pub = get_pubkey(seckey, true).hex
   // Unpack parsed config object.
   const tag = parse_params(opt.params)
   // Build the pre-image that we will be hashing.
   const img = [ 0, pub, cat, knd, tag, content ]
-  // Compute the proof id from the image.
+  // Compute the token id from the image.
   const pid = Buff.json(img).digest.hex
   // Compute a signature for the given id.
-  const sig = signer(pid)
+  const sig = sign_msg(pid, seckey).hex
   // Normalize kind and stamp values.
   const cb  = Buff.num(cat, 4)
   const kb  = Buff.num(knd, 4)
-  // Create the proof string.
+  // Create the token string.
   const hex = Buff.join([ kb, cb, pub, pid, sig ]).hex
   // Create the params string.
   const qry = encode_params(tag)
@@ -59,13 +63,13 @@ export function create_proof (
 }
 
 /**
- * Decode and parse a proof string
+ * Decode and parse a token string
  * into a rich data object.
  */
-export function parse_proof (
-  proof : string,
-) : ProofData {
-  const [ hex, qry ] = proof.split('?')
+export function parse_token (
+  tokenstr : string,
+) : TokenData {
+  const [ hex, qry ] = tokenstr.split('?')
   // Convert the hex string into a data stream.
   const stream = Buff.hex(hex).stream
   // Assert the stream size is correct.
@@ -76,66 +80,70 @@ export function parse_proof (
         pub = stream.read(32).hex,
         pid = stream.read(32).hex,
         sig = stream.read(64).hex,
-        str = proof,
+        str = tokenstr,
         tag = decode_params(qry)
-  // Return the proof object.
+  // Return the token object.
   return { cat, hex, knd, pid, pub, qry, sig, str, tag }
 }
 
 /**
- * Use regex to check if a proof string is valid.
+ * Use regex to check if a token string is valid.
  */
-export function validate_proof (proof : string) {
+export function validate_token (tokenstr : string) {
   const regex = /^[0-9a-fA-F]{272}(?:\?[A-Za-z0-9_]+=[A-Za-z0-9_]+(?:&[A-Za-z0-9_]+=[A-Za-z0-9_]+)*)?$/
-  if (!regex.test(proof)) {
-    throw new Error('invalid proof format')
+  if (!regex.test(tokenstr)) {
+    throw new Error('invalid token format')
   }
 }
 
 /**
- * Verify a proof string along with
+ * Verify a token string along with
  * its matching content string.
  */
-export function verify_proof (
+export function verify_token (
   content : string,
-  proof   : ProofData,
-  policy ?: ProofPolicy
+  token   : TokenData | string,
+  policy ?: TokenPolicy
 ) : void {
+  if (typeof token === 'string') {
+    token = parse_token(token)
+  }
+  // Unpack policy object.
   const { since, until } = policy ?? {}
-  // Parse the proof data from the hex string.
-  const { cat, knd, pub, pid, sig, tag } = proof
+  // Parse the token data from the hex string.
+  const { cat, knd, pub, pid, sig, tag } = token
   // Parse the configuration from params.
   const tags = parse_params(tag)
   // Assemble the pre-image for the hashing function.
   const img = [ 0, pub, cat, knd, tags, content ]
   // Stringify and hash the preimage.
-  const proof_hash = Buff.json(img).digest
-  // Verify the proof:
-  if (proof_hash.hex !== pid) {
-    // Throw if the hash does not match our proof id.
-    throw new Error('Proof hash does not equal proof id!')
+  const token_hash = Buff.json(img).digest
+  // Verify the token:
+  if (token_hash.hex !== pid) {
+    // Throw if the hash does not match our token id.
+    throw new Error('token hash does not equal token id!')
   } else if (since !== undefined && cat < since) {
     // Throw if the timestamp is below the threshold.
-    throw new Error(`Proof timestamp created below threshold: ${cat} < ${since}`)
+    throw new Error(`token timestamp created below threshold: ${cat} < ${since}`)
   } else if (until !== undefined && cat > until) {
     // Throw if the timestamp is above the threshold.
-    throw new Error(`Proof timestamp created above threshold: ${cat} > ${until}`)
+    throw new Error(`token timestamp created above threshold: ${cat} > ${until}`)
   } else if (!verify_sig(sig, pid, pub)) {
     // Throw if the signature is invalid.
-    throw new Error('Proof signature is invalid!')
+    throw new Error('token signature is invalid!')
   }
 }
 
 /**
- * Convert a proof string into a valid nostr note.
+ * Convert a token string into a valid nostr note.
  */
-export function proof_to_note (
+export function publish_token (
   content : string,
-  proof   : ProofData
+  token   : TokenData
 ) : SignedEvent {
-  // Parse the proof data from the hex string.
-  const { cat, knd, pub, pid, sig, tag } = proof
-  // Return the proof formatted as a nostr event.
+  // Parse the token data from the hex string.
+  const { cat, knd, pub, pid, sig, tag } = token
+  // Return the token formatted as a nostr event.
   return { kind : knd, content, tags : tag, pubkey: pub, id: pid, sig, created_at: cat }
 }
 
@@ -185,9 +193,9 @@ export function get_param (label : string, tags : string[][]) {
 }
 
 export default {
-  create   : create_proof,
-  parse    : parse_proof,
-  publish  : proof_to_note,
-  validate : validate_proof,
-  verify   : verify_proof
+  create   : create_token,
+  parse    : parse_token,
+  publish  : publish_token,
+  validate : validate_token,
+  verify   : verify_token
 }

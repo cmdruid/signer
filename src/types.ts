@@ -4,47 +4,19 @@ import { Network } from '@scrow/tapscript'
 export type Literal = string | number | boolean | null
 export type Params  = Literal[][] | Record<string, Literal>
 
-// export interface ExtPubkey {
-//   code    : string
-//   depth   : number
-//   fprint  : number
-//   index   : number
-//   pubkey  : string
-//   version : number
-// }
-
-// export interface KeyCredential {
-//   kid     : Bytes
-//   pub     : Bytes
-//   ref     : Bytes
-//   seckey  : Bytes
-//   xpub    : string
-// }
-
-// export interface PubCredential {
-//   kid : string
-//   pay : string
-//   pub : string
-//   ref : string
-//   vec : string
-// }
-
-// export interface PayloadConfig {
-//   iv     ?: Bytes
-//   pubkey ?: Bytes
-// }
-
-export interface Credential {
-  id  : string
-  idx : number
-  pub : string
-  sig : string
+export interface CredentialData {
+  id    : string
+  idx   : number
+  pub   : string
+  rpub ?: string
+  xpub ?: string
+  sig   : string
 }
 
 export interface KeyConfig {
-  seed    : Bytes
-  id     ?: Bytes
-  id_gen ?: () => Bytes
+  seed     : Bytes
+  id      ?: Bytes
+  idx_gen ?: () => number
 }
 
 export interface AddressConfig {
@@ -53,27 +25,20 @@ export interface AddressConfig {
   network ?: Network
 }
 
-export interface ProofConfig {
-  content     : string
+export interface TokenOptions {
   created_at ?: number
   kind       ?: number
   options    ?: SignOptions
   params     ?: Params
-  seckey      : Bytes
 }
 
-export interface ProofPolicy {
+export interface TokenPolicy {
   since  ?: number
   throws ?: boolean
   until  ?: number
 }
 
-// export interface WalletConfig {
-//   network   : Network
-//   start_idx : number
-// }
-
-export interface ProofData {
+export interface TokenData {
   cat  : number
   hex  : string
   knd  : number
