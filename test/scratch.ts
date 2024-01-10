@@ -1,18 +1,20 @@
 import assert from 'assert'
 
-import { Cred, Signer, Wallet } from '../src/index.js'
+import { Cred, Seed, Signer, Wallet } from '../src/index.js'
 
-const signer = Signer.generate()
-const wallet = Wallet.generate()
-
-const cred = signer.gen_cred(wallet.xpub)
+const seed   = Seed.import.from_char('alice')
+const idxgen = undefined // () => 0
+const wallet = Wallet.create(seed)
+const xpub   = wallet.xpub
+const signer = new Signer({ seed, idxgen })
+const cred   = signer.gen_cred()
 
 console.log('cred:', cred)
 
 assert.ok(wallet.xprv !== null)
 
-console.log('claimable:', Cred.has_id(cred, signer.pubkey, wallet.xpub))
+console.log('claimable:', signer.has_id(cred.id, cred.pub))
 
-const recv = Cred.claim(cred, wallet.xprv)
+const s2 = signer.get_cred(cred)
 
-console.log('recovered:', recv.hex)
+console.log('signer:', s2.toJSON())

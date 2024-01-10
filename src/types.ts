@@ -5,18 +5,22 @@ export type Literal = string | number | boolean | null
 export type Params  = Literal[][] | Record<string, Literal>
 
 export interface CredentialData {
-  id    : string
-  idx   : number
-  pub   : string
-  rpub ?: string
+  id   : string
+  pub  : string
+  sig  : string
+  wpub : string
+}
+
+export interface CredConfig {
+  idx  ?: number
   xpub ?: string
-  sig   : string
 }
 
 export interface KeyConfig {
-  seed     : Bytes
-  id      ?: Bytes
-  idx_gen ?: () => number
+  seed    : Bytes
+  id     ?: Bytes
+  idxgen ?: () => number
+  xpub   ?: string
 }
 
 export interface AddressConfig {

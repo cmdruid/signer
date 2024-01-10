@@ -26,23 +26,25 @@ export class ExtendedKey {
 
   readonly _hd  : HDKey
 
-  constructor (extkey : string | HDKey, xpub_only = false) {
+  constructor (extkey : string | HDKey) {
     // Assert that we have a proper HDKey instance.
     if (typeof extkey === 'string') {
       extkey = HDKey.fromExtendedKey(extkey)
     }
-
-    // If HDKey contains private data, remove it.
-    if (xpub_only && extkey.privateKey !== null) {
-      extkey = extkey.wipePrivateData()
-    }
-
-    this._hd  = extkey
+    this._hd = extkey
   }
 
-  get chaincode () {
+  get code () {
     assert.exists(this.hd.chainCode)
     return Buff.raw(this.hd.chainCode).hex
+  }
+
+  get depth () {
+    return this.hd.depth
+  }
+
+  get fprint () {
+    return Buff.num(this.hd.fingerprint, 4).hex
   }
 
   get hd () : HDKey {
@@ -51,6 +53,10 @@ export class ExtendedKey {
 
   get index () : number {
     return this.hd.index
+  }
+
+  get parent_fp () {
+    return Buff.num(this.hd.parentFingerprint, 4).hex
   }
 
   get pubkey () : string {
@@ -131,6 +137,11 @@ export class Wallet extends ExtendedKey {
     return this._idx
   }
 
+  get wiped () {
+    const hd = this._hd.wipePrivateData()
+    return new Wallet(hd)
+  }
+
   _cache (addr : string) {
     if (!this._addr.includes(addr)) {
       this._addr.push(addr)
@@ -194,5 +205,14 @@ export class Wallet extends ExtendedKey {
     const addr  = this.get_address({ ...options, index })
     this._idx   = index
     return addr
+  }
+
+  toJSON () {
+    const { code, depth, fprint, index, parent_fp, pubkey, xpub } = this
+    return { code, depth, fprint, index, parent_fp, pubkey, xpub }
+  }
+
+  toString () {
+    return this.xpub
   }
 }
