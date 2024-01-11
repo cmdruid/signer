@@ -81,10 +81,10 @@ export class ExtendedKey {
   }
 
   address (options ?: AddressConfig) : string {
-    const format  = options?.format  ?? 'p2wpkh'
+    const format  = options?.format  ?? 'p2w-pkh'
     const network = options?.network ?? this.version
     switch (format) {
-      case 'p2wpkh':
+      case 'p2w-pkh':
         return P2WPKH.create(this.pubkey, network)
       case 'p2tr':
         return P2TR.create(this.pubkey, network)
