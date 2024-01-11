@@ -72,3 +72,10 @@ export interface SignOptions {
   recovery_key ?: Bytes
   throws       ?: boolean
 }
+
+export interface WalletConfig {
+  seed      : Bytes,
+  network  ?: Network,
+  path     ?: string,
+  versions ?: { private : number, public : number }
+}

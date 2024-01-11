@@ -4,7 +4,7 @@ import { Seed, Signer, Wallet } from '../src/index.js'
 
 const seed   = Seed.import.from_char('alice')
 const idxgen = () => 0
-const wallet = Wallet.create(seed)
+const wallet = Wallet.create({ seed, network : 'regtest' })
 const xpub   = wallet.xpub
 const signer = new Signer({ seed, idxgen })
 const cred   = signer.gen_cred(0, xpub)

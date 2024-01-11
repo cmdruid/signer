@@ -1,6 +1,6 @@
-import { HDKey }       from '@scure/bip32'
-import { Buff, Bytes } from '@cmdcode/buff'
-import { ecdhash }     from '@cmdcode/crypto-tools/ecdh'
+import { Buff, Bytes }  from '@cmdcode/buff'
+import { ecdhash }      from '@cmdcode/crypto-tools/ecdh'
+import { parse_extkey } from './util.js'
 
 import {
   hmac256,
@@ -49,9 +49,10 @@ export function gen_credential (
 ) : CredentialData {
   const idx = index & 0x7FFFFFFF
   // Create an HD object from extended key.
-  const whd = HDKey.fromExtendedKey(mxpub).deriveChild(idx)
+  const mhd = parse_extkey(mxpub)
+  const chd = mhd.deriveChild(idx)
   // Assert the required fields exist.
-  assert.exists(whd.publicKey)
+  assert.exists(chd.publicKey)
   // Define the credential xonly pubkey.
   const mspub = get_pubkey(seckey, true)
   // Define the credential identifier.
@@ -63,13 +64,13 @@ export function gen_credential (
   // Compute the credential pubkey.
   const pub   = get_pubkey(csec, true).hex
   // Define the wallet pubkey.
-  const wpub  = Buff.raw(whd.publicKey)
+  const wpub  = Buff.raw(chd.publicKey)
   // Compute the shared seed value.
   const nseed = ecdhash(csec, wpub, true)
   // Configure the signing options.
   const opt   = { nonce_seed : nseed }
   // Define the child xpub.
-  const xpub  = whd.publicExtendedKey
+  const xpub  = chd.publicExtendedKey
   // Compute the signature message.
   const msg   = get_cred_msg(id, xpub)
   // Define the credential signature.
@@ -90,8 +91,8 @@ export function verify_credential (
     throw new Error('invalid credential id')
   }
   // Check credential xpub.
-  const mhd = HDKey.fromExtendedKey(mxpub)
-  const chd = HDKey.fromExtendedKey(xpub)
+  const mhd = parse_extkey(mxpub)
+  const chd = parse_extkey(xpub)
   if (chd.parentFingerprint !== mhd.fingerprint) {
     throw new Error('invalid credential xpub')
   }
@@ -111,8 +112,8 @@ export function claim_credential (
   // Unpack the credential object.
   const { id, pub, sig, xpub } = cred
   // Create an HD object from extended key.
-  const chd = HDKey.fromExtendedKey(xpub)
-  const mhd = HDKey.fromExtendedKey(xprv).deriveChild(chd.index)
+  const chd = parse_extkey(xpub)
+  const mhd = parse_extkey(xprv).deriveChild(chd.index)
   // Assert the required fields exist.
   assert.exists(mhd.privateKey)
   // Compute the shared seed value.

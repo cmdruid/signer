@@ -1,7 +1,9 @@
-import { Buff, Bytes }   from '@cmdcode/buff'
-import { HDKey }         from '@scure/bip32'
-import { Network }       from '@scrow/tapscript'
-import { AddressConfig } from '../types.js'
+import { Buff, Bytes }     from '@cmdcode/buff'
+import { HDKey }           from '@scure/bip32'
+import { Network }         from '@scrow/tapscript'
+import { parse_extkey }    from '../lib/util.js'
+import { AddressConfig, WalletConfig }   from '../types.js'
+import { PATHS, VERSIONS } from '../const.js'
 
 import {
   P2PKH,
@@ -12,24 +14,14 @@ import {
 
 import * as assert from '../assert.js'
 
-const PATHS = {
-  main : "m/86'/0'/0'",
-  test : "m/86'/1'/0'"
-}
-
-const VERSIONS = {
-  main : { private : 0x0488ade4, public : 0x0488b21e },
-  test : { private : 0x04358394, public : 0x043587cf }
-}
-
 export class ExtendedKey {
 
-  readonly _hd  : HDKey
+  readonly _hd : HDKey
 
   constructor (extkey : string | HDKey) {
     // Assert that we have a proper HDKey instance.
     if (typeof extkey === 'string') {
-      extkey = HDKey.fromExtendedKey(extkey)
+      extkey = parse_extkey(extkey)
     }
     this._hd = extkey
   }
@@ -43,7 +35,7 @@ export class ExtendedKey {
     return this.hd.depth
   }
 
-  get fprint () {
+  get fp () {
     return Buff.num(this.hd.fingerprint, 4).hex
   }
 
@@ -55,7 +47,7 @@ export class ExtendedKey {
     return this.hd.index
   }
 
-  get parent_fp () {
+  get pfp () {
     return Buff.num(this.hd.parentFingerprint, 4).hex
   }
 
@@ -98,27 +90,23 @@ export class ExtendedKey {
 
 export class Wallet extends ExtendedKey {
 
-  static create (
-    seed    : Bytes, 
-    network : Network = 'main',
-    path   ?: string,
-    prefix ?: { private : number, public : number }
-  ) {
+  static create (config : WalletConfig) {
+    let { seed, path, network = 'main', versions } = config
     if (path === undefined) {
       path = (network === 'main') ? PATHS.main : PATHS.test
     }
-    if (prefix === undefined) {
-      prefix = (network === 'main') ? VERSIONS.main : VERSIONS.test
+    if (versions === undefined) {
+      versions = (network === 'main') ? VERSIONS.main : VERSIONS.test
     }
     const uint8 = Buff.bytes(seed).raw
-    const mstr  = HDKey.fromMasterSeed(uint8, prefix)
+    const mstr  = HDKey.fromMasterSeed(uint8, versions)
     const hdkey = mstr.derive(path)
     return new Wallet(hdkey)
   }
 
   static generate (network : Network = 'main') {
     const seed = Buff.random(64)
-    return Wallet.create(seed, network)
+    return Wallet.create({ seed, network })
   }
 
   _addr : string[]
@@ -208,8 +196,8 @@ export class Wallet extends ExtendedKey {
   }
 
   toJSON () {
-    const { code, depth, fprint, index, parent_fp, pubkey, xpub } = this
-    return { code, depth, fprint, index, parent_fp, pubkey, xpub }
+    const { code, depth, fp, index, pfp, pubkey, xpub } = this
+    return { code, depth, fp, index, pfp, pubkey, xpub }
   }
 
   toString () {
