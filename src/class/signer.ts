@@ -168,7 +168,8 @@ export class Signer extends KeyPair {
     content  : string,
     options ?: TokenOptions
   ) {
-    return this._gen_token(options)(content)
+    const token = this._gen_token(options)(content)
+    return token.str
   }
 
   get_id (id : Bytes) {

@@ -117,17 +117,17 @@ export function verify_token (
   // Assemble the pre-image for the hashing function.
   const img = [ 0, pub, cat, knd, tags, content ]
   // Stringify and hash the preimage.
-  const token_hash = Buff.json(img).digest
+  const hash = Buff.json(img).digest.hex
   // Verify the token:
-  if (token_hash.hex !== pid) {
+  if (hash !== pid) {
     // Throw if the hash does not match our token id.
-    throw new Error('token hash does not equal token id!')
+    throw new Error('token id does not equal hash :' + hash)
   } else if (since !== undefined && cat < since) {
     // Throw if the timestamp is below the threshold.
-    throw new Error(`token timestamp created below threshold: ${cat} < ${since}`)
+    throw new Error(`token created before date: ${cat} < ${since}`)
   } else if (until !== undefined && cat > until) {
     // Throw if the timestamp is above the threshold.
-    throw new Error(`token timestamp created above threshold: ${cat} > ${until}`)
+    throw new Error(`token created after date: ${cat} > ${until}`)
   } else if (!verify_sig(sig, pid, pub)) {
     // Throw if the signature is invalid.
     throw new Error('token signature is invalid!')
