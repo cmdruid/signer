@@ -13,12 +13,12 @@ import {
   mnemonicToSeedSync
 } from '@scure/bip39'
 
-export function import_seed_data (
-  data      : Bytes, 
+export function import_seed_bytes (
+  bytes     : Bytes, 
   password ?: string
 ) {
   const salt = Buff.str('seed' + password)
-  return pkdf512(data, salt)
+  return pkdf512(bytes, salt)
 }
 
 export function import_seed_char (
@@ -60,13 +60,13 @@ export function gen_seed_shares (
 
 export default {
   generate : {
-    random : (size ?: number) => Buff.random(size),
+    bytes  : (size ?: number) => Buff.random(size),
     shares : gen_seed_shares,
     words  : gen_seed_words
   },
   import : {
+    from_bytes  : import_seed_bytes,
     from_char   : import_seed_char,
-    from_data   : import_seed_data,
     from_shares : import_seed_shares,
     from_words  : import_seed_words
   }

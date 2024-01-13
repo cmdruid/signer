@@ -2,7 +2,6 @@ import { Buff, Bytes }     from '@cmdcode/buff'
 import { HDKey }           from '@scure/bip32'
 import { Network }         from '@scrow/tapscript'
 import { parse_extkey }    from '../lib/util.js'
-import { AddressConfig, WalletConfig }   from '../types.js'
 import { PATHS, VERSIONS } from '../const.js'
 
 import {
@@ -11,6 +10,11 @@ import {
   P2WPKH,
   parse_addr
 } from '@scrow/tapscript/address'
+
+import {
+  AddressConfig,
+  WalletConfig
+} from '../types.js'
 
 import * as assert from '../assert.js'
 
@@ -136,9 +140,14 @@ export class Wallet extends ExtendedKey {
     }
   }
 
-  _derive (index : number) {
+  derive_idx (index : number) {
     const hd = this.hd.deriveChild(index)
-    return new ExtendedKey(hd)
+    return new Wallet(hd)
+  }
+
+  derive_path (path : string) {
+    const hd = this.hd.derive(path)
+    return new Wallet(hd)
   }
 
   get_account (
@@ -161,16 +170,13 @@ export class Wallet extends ExtendedKey {
 
   get_address (options ?: AddressConfig) {
     const idx  = options?.index ?? this.idx
-    const key  = this._derive(idx)
+    const key  = this.derive_idx(idx)
     const addr = key.address(options)
     this._cache(addr)
     return addr
   }
 
-  has_address (
-    address : string,
-    limit = 100
-  ) {
+  has_address (address : string, limit = 100) {
     if (this._addr.includes(address)) {
       return true
     } else {
