@@ -1,6 +1,6 @@
 import { Buff, Bytes }  from '@cmdcode/buff'
 import { ecdh }         from '@cmdcode/crypto-tools/ecdh'
-import { create_token } from '../index.js'
+import { create_token } from '../lib/token.js'
 
 import {
   hmac256,
