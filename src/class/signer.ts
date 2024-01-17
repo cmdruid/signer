@@ -35,6 +35,7 @@ import {
 } from '../types.js'
 
 import * as assert from '../assert.js'
+import { decrypt_key, encrypt_key } from '../lib/util.js'
 
 const MSG_MIN_VALUE = 0xFFn ** 24n
 
@@ -103,8 +104,17 @@ export class Signer extends KeyPair {
     return new Signer({ seed, id : cred.id })
   }
 
-  static generate (config : KeyConfig) {
+  static generate (config ?: Partial<KeyConfig>) {
     const seed = Buff.random(32)
+    return new Signer({ ...config, seed })
+  }
+
+  static restore (
+    password : Bytes,
+    payload  : Bytes,
+    config  ?: Partial<KeyConfig>
+  ) {
+    const seed = decrypt_key(payload, password)
     return new Signer({ ...config, seed })
   }
 
@@ -150,6 +160,10 @@ export class Signer extends KeyPair {
       assert.min_value(msg, MSG_MIN_VALUE)
       return sign_msg(msg, this._seckey, opt).hex
     }
+  }
+
+  backup (password : Bytes) {
+    return encrypt_key(password, this._seckey)
   }
 
   gen_cred (idx : number, xpub : string) : CredentialData {

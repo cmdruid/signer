@@ -26,6 +26,23 @@ const TOKEN_DEFAULTS = {
   params     : []
 }
 
+export function get_token_id (
+  content  : string,
+  pubkey   : string,
+  options ?: TokenOptions
+) {
+  // Initialize config object.
+  const opt = { ...TOKEN_DEFAULTS, ...options }
+  // Unpack config object.
+  const { created_at : cat, kind : knd } = opt
+  // Unpack parsed config object.
+  const tag = parse_params(opt.params)
+  // Build the pre-image that we will be hashing.
+  const img = [ 0, pubkey, cat, knd, tag, content ]
+  // Compute the token id from the image.
+  return Buff.json(img).digest.hex
+}
+
 /**
  * Create a new token token using a provided
  * signing device and content string (plus params).
@@ -43,10 +60,8 @@ export function create_token (
   const pub = get_pubkey(seckey, true).hex
   // Unpack parsed config object.
   const tag = parse_params(opt.params)
-  // Build the pre-image that we will be hashing.
-  const img = [ 0, pub, cat, knd, tag, content ]
   // Compute the token id from the image.
-  const pid = Buff.json(img).digest.hex
+  const pid = get_token_id(content, pub, opt)
   // Compute a signature for the given id.
   const sig = sign_msg(pid, seckey).hex
   // Normalize kind and stamp values.
@@ -130,7 +145,7 @@ export function verify_token (
     throw new Error(`token created after date: ${cat} > ${until}`)
   } else if (!verify_sig(sig, pid, pub)) {
     // Throw if the signature is invalid.
-    throw new Error('token signature is invalid!')
+    throw new Error('token signature is invalid')
   }
 }
 
