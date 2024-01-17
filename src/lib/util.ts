@@ -40,7 +40,8 @@ export function encrypt_key (
 ) {
   const pubkey  = get_pubkey(seckey)
   const secret  = derive_secret(password, pubkey)
-  return encrypt(secret, secret, pubkey)
+  const encdata = encrypt(secret, secret, pubkey)
+  return Buff.join([ pubkey, encdata ])
 }
 
 export function decrypt (
