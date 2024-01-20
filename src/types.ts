@@ -1,7 +1,7 @@
-import { Bytes }   from '@cmdcode/buff'
-import { Network } from '@scrow/tapscript'
+import { Bytes } from '@cmdcode/buff'
 
 export type Literal = string | number | boolean | null
+export type Network = "main" | "testnet" | "signet" | "regtest"
 export type Params  = Literal[][] | Record<string, Literal>
 
 export interface CredentialData {

@@ -1,6 +1,5 @@
 import { Buff, Bytes }     from '@cmdcode/buff'
 import { HDKey }           from '@scure/bip32'
-import { Network }         from '@scrow/tapscript'
 import { parse_extkey }    from '../lib/util.js'
 import { PATHS, VERSIONS } from '../const.js'
 
@@ -108,9 +107,9 @@ export class Wallet extends ExtendedKey {
     return new Wallet(hdkey)
   }
 
-  static generate (network : Network = 'main') {
+  static generate (config : WalletConfig) {
     const seed = Buff.random(64)
-    return Wallet.create({ seed, network })
+    return Wallet.create({ ...config, seed })
   }
 
   _addr : string[]
