@@ -1,7 +1,7 @@
 import { Bytes } from '@cmdcode/buff'
 
 export type Literal = string | number | boolean | null
-export type Network = "main" | "testnet" | "signet" | "regtest"
+export type Network = "main" | "testnet" | "signet" | "regtest" | "mutiny"
 export type Params  = Literal[][] | Record<string, Literal>
 
 export interface CredentialData {
