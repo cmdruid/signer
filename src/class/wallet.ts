@@ -77,7 +77,8 @@ export class ExtendedKey {
 
   address (options ?: AddressConfig) : string {
     const format  = options?.format  ?? 'p2w-pkh'
-    const network = options?.network ?? this.version
+      let network = options?.network ?? this.version
+    if (network === 'mutiny') network = 'signet'
     switch (format) {
       case 'p2w-pkh':
         return P2WPKH.create(this.pubkey, network)
