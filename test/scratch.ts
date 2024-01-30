@@ -1,20 +1,22 @@
 import assert from 'assert'
 
 import { Seed, Signer, Wallet } from '../src/index.js'
+import { Buff } from '@cmdcode/buff'
 
 const seed   = Seed.import.from_char('alice')
 const idxgen = () => 0
 const wallet = Wallet.create({ seed, network : 'regtest' })
 const xpub   = wallet.xpub
 const signer = new Signer({ seed, idxgen })
-const cred   = signer.gen_cred(0, xpub)
 
-console.log('cred:', cred)
+const backup = signer.backup(Buff.str('test'))
 
-assert.ok(wallet.xprv !== null)
+console.log('signer:', signer.pubkey)
+console.log('backup:', backup.hex)
+console.log('size:', backup.length)
 
-console.log('claimable:', signer.has_id(cred.id, cred.pub))
+const restored = Signer.restore(Buff.str('test'), backup)
 
-const s2 = signer.get_id(cred.id)
+console.log('restored:', restored.pubkey)
 
-console.log('signer:', s2.toJSON())
+console.log('is restored:', signer.pubkey === restored.pubkey)

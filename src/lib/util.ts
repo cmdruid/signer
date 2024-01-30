@@ -41,8 +41,8 @@ export function encrypt_key (
   password : Bytes,
   seckey   : Bytes
 ) {
-  const vector  = get_pubkey(seckey).slice(0, 16)
+  const vector  = get_pubkey(seckey, true).slice(0, 16)
   const secret  = derive_secret(password, vector)
-  const encdata = encrypt_cbc(secret, secret, vector)
+  const encdata = encrypt_cbc(seckey, secret, vector)
   return Buff.join([ vector, encdata ])
 }
