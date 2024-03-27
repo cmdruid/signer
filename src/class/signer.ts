@@ -35,6 +35,7 @@ import {
 } from '../types.js'
 
 import * as assert from '../assert.js'
+
 import { decrypt_key, encrypt_key } from '../lib/util.js'
 
 const MSG_MIN_VALUE = 0xFFn ** 24n
@@ -55,6 +56,10 @@ export class KeyPair {
     this._id = (id !== undefined)
       ? Buff.bytes(id)
       : this.hmac('256', this.pubkey)
+  }
+
+  get cpubkey () {
+    return this._pubkey.hex
   }
 
   get is_root () {
