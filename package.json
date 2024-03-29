@@ -10,7 +10,7 @@
     "signer",
     "library"
   ],
-  "version": "1.4.3",
+  "version": "1.4.4",
   "type": "module",
   "main": "./dist/main.cjs",
   "unpkg": "./dist/script.js",
