@@ -30,6 +30,7 @@ export interface KeyConfig {
   seed    : Bytes
   id     ?: Bytes
   idxgen ?: () => number
+  path   ?: string
   xpub   ?: string
 }
 

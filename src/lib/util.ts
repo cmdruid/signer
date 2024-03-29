@@ -9,6 +9,15 @@ import {
   encrypt_cbc
 } from '@cmdcode/crypto-tools/cipher'
 
+export function create_xpub (
+  seed : Bytes,
+  path : string = "m/'86/'0/'0/0"
+) {
+  const secret = Buff.bytes(seed)
+  const hdkey  = HDKey.fromMasterSeed(secret).derive(path)
+  return hdkey.publicExtendedKey
+}
+
 export function parse_extkey (extkey : string) {
   if (extkey.startsWith('xpub')) {
     return HDKey.fromExtendedKey(extkey, VERSIONS['main'])

@@ -28,6 +28,12 @@ import {
 } from '../lib/cred.js'
 
 import {
+  create_xpub,
+  decrypt_key,
+  encrypt_key
+} from '../lib/util.js'
+
+import {
   CredentialData,
   KeyConfig,
   SignOptions,
@@ -36,8 +42,6 @@ import {
 
 import * as assert from '../assert.js'
 
-import { decrypt_key, encrypt_key } from '../lib/util.js'
-
 const MSG_MIN_VALUE = 0xFFn ** 24n
 
 export class KeyPair {
@@ -45,9 +49,10 @@ export class KeyPair {
   readonly _id     : Buff
   readonly _pubkey : Buff
   readonly _seckey : Buff
+  readonly _xpub   : string
 
   constructor (config : KeyConfig) {
-    const { seed, id } = config
+    const { id, path, seed } = config
     // Use the secret as the key.
     this._seckey = get_seckey(seed)
     // Compute the pubkey from the seckey.
@@ -56,9 +61,11 @@ export class KeyPair {
     this._id = (id !== undefined)
       ? Buff.bytes(id)
       : this.hmac('256', this.pubkey)
+    // Set the xpub for the signer.
+    this._xpub = create_xpub(seed, path)
   }
 
-  get cpubkey () {
+  get cpub () {
     return this._pubkey.hex
   }
 
@@ -77,6 +84,10 @@ export class KeyPair {
 
   get pubkey () {
     return this._pubkey.slice(1).hex
+  }
+
+  get xpub () {
+    return this._xpub
   }
 
   ecdh (pubkey : Bytes, xonly = false) {
