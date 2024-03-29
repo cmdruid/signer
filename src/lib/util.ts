@@ -11,7 +11,7 @@ import {
 
 export function create_xpub (
   seed : Bytes,
-  path : string = "m/'86/'0/'0/0"
+  path : string = "m/86'/0'/0'/0"
 ) {
   const secret = Buff.bytes(seed)
   const hdkey  = HDKey.fromMasterSeed(secret).derive(path)
